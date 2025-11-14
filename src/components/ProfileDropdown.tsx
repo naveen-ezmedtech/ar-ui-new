@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
-import type { Patient } from '../types';
+import type { User } from '../types';
+
 interface ProfileDropdownProps {
-  user: Patient;
+  user: User | null;
   onLogout: () => void;
 }
 

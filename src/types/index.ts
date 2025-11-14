@@ -1,3 +1,9 @@
+export interface User {
+  id: number;
+  email: string;
+  full_name: string;
+}
+
 export interface Patient {
   phone_number: string;
   patient_name: string;

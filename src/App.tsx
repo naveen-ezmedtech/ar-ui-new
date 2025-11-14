@@ -12,12 +12,12 @@ import {
   LoginPage
 } from './components';
 import { uploadCSV, getCSVData, triggerBatchCall } from './services/api';
-import type { Patient, Message } from './types';
+import type { Patient, Message, User } from './types';
 
 function App() {
   // Auth state
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [user, setUser] = useState<Patient | null>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [checkingAuth, setCheckingAuth] = useState(true);
 
   // Existing state
@@ -54,7 +54,7 @@ function App() {
   }, []);
 
   // Handle login
-  const handleLogin = (_token: string, userData: Patient) => {
+  const handleLogin = (_token: string, userData: User) => {
     setIsAuthenticated(true);
     setUser(userData);
   };

@@ -1,8 +1,9 @@
 import logo from '../assets/logo.jpg';
 import { ProfileDropdown } from './ProfileDropdown';
+import type { User } from '../types';
 
 interface HeaderProps {
-  user: any;
+  user: User | null;
   onLogout: () => void;
 }
 
