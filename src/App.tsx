@@ -143,10 +143,35 @@ function App() {
     }
   };
 
+  const sanitizeFileName = (fileName: string): string => {
+    // Remove file extension temporarily
+    const lastDotIndex = fileName.lastIndexOf('.');
+    const nameWithoutExt = lastDotIndex !== -1 ? fileName.substring(0, lastDotIndex) : fileName;
+    const extension = lastDotIndex !== -1 ? fileName.substring(lastDotIndex) : '';
+    
+    // Remove spaces
+    let sanitized = nameWithoutExt.replace(/\s+/g, '');
+    
+    // Remove patterns like (1), (2), etc.
+    sanitized = sanitized.replace(/\(\d+\)/g, '');
+    
+    // Remove parentheses if any remain
+    sanitized = sanitized.replace(/[()]/g, '');
+    
+    // Return sanitized name with extension
+    return sanitized + extension;
+  };
+
   const handleFileUpload = async (file: File) => {
     setUploadLoading(true);
     try {
-      const response = await uploadCSV(file);
+      // Create a new File object with sanitized name
+      const sanitizedName = sanitizeFileName(file.name);
+      const sanitizedFile = sanitizedName !== file.name 
+        ? new File([file], sanitizedName, { type: file.type })
+        : file;
+      
+      const response = await uploadCSV(sanitizedFile);
       showMessage('success', `Uploaded ${response.patient_count} patients successfully`);
       
       setCurrentFile(response.filename);
