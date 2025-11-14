@@ -8,12 +8,19 @@ import {
   DownloadButton,
   PatientTable,
   ConfirmModal,
-  NotesModal
+  NotesModal,
+  LoginPage
 } from './components';
 import { uploadCSV, getCSVData, triggerBatchCall } from './services/api';
 import type { Patient, Message } from './types';
 
 function App() {
+  // Auth state
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [user, setUser] = useState<any>(null);
+  const [checkingAuth, setCheckingAuth] = useState(true);
+
+  // Existing state
   const [currentFile, setCurrentFile] = useState<string>('');
   const [patients, setPatients] = useState<Patient[]>([]);
   const [loading, setLoading] = useState(false);
@@ -25,6 +32,19 @@ function App() {
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   const refreshIntervalRef = useRef<number | null>(null);
 
+  // Check if user is already logged in on mount
+  useEffect(() => {
+    const token = localStorage.getItem('access_token');
+    const storedUser = localStorage.getItem('user');
+    
+    if (token && storedUser) {
+      setIsAuthenticated(true);
+      setUser(JSON.parse(storedUser));
+    }
+    
+    setCheckingAuth(false);
+  }, []);
+
   useEffect(() => {
     return () => {
       if (refreshIntervalRef.current) {
@@ -32,6 +52,22 @@ function App() {
       }
     };
   }, []);
+
+  // Handle login
+  const handleLogin = (_token: string, userData: any) => {
+    setIsAuthenticated(true);
+    setUser(userData);
+  };
+
+  // Handle logout
+  const handleLogout = () => {
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('user');
+    setIsAuthenticated(false);
+    setUser(null);
+    setCurrentFile('');
+    setPatients([]);
+  };
 
   const loadPatientData = async (filename: string, silent: boolean = false, includeOutput: boolean = true) => {
     if (!silent) {
@@ -67,7 +103,7 @@ function App() {
       showMessage('success', `Parsed ${response.patient_count} patients successfully`);
       
       setCurrentFile(response.filename);
-      await loadPatientData(response.filename, false, false); // Don't include output - show fresh data
+      await loadPatientData(response.filename, false, false);
     } catch (error) {
       const err = error as { response?: { data?: { detail?: string } } };
       console.error('Upload failed:', error);
@@ -94,10 +130,7 @@ function App() {
       const response = await triggerBatchCall(currentFile);
       showMessage('success', response.message);
       
-      // Start aggressive auto-refresh for real-time updates
       startAutoRefresh();
-      
-      // Immediate silent refresh
       setTimeout(() => loadPatientData(currentFile, true), 1000);
     } catch (error) {
       const err = error as { response?: { data?: { detail?: string } } };
@@ -113,18 +146,17 @@ function App() {
       clearInterval(refreshIntervalRef.current);
     }
 
-    // Silent refresh every 3 seconds for 2 minutes (40 refreshes)
     let count = 0;
     refreshIntervalRef.current = window.setInterval(() => {
       if (currentFile && count < 40) {
-        loadPatientData(currentFile, true); // Silent refresh
+        loadPatientData(currentFile, true);
         count++;
       } else {
         if (refreshIntervalRef.current) {
           clearInterval(refreshIntervalRef.current);
         }
       }
-    }, 3000); // Refresh every 3 seconds
+    }, 3000);
   };
 
   const showMessage = (type: 'success' | 'error' | 'info', text: string) => {
@@ -137,9 +169,40 @@ function App() {
     setShowNotesModal(true);
   };
 
+  // Show loading while checking auth
+  if (checkingAuth) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
+        <p className="text-gray-600 font-medium">Loading...</p>
+      </div>
+    );
+  }
+
+  // Show login page if not authenticated
+  if (!isAuthenticated) {
+    return <LoginPage onLogin={handleLogin} />;
+  }
+
+  // Show main dashboard if authenticated
   return (
     <div className="max-w-7xl mx-auto px-6 py-8">
       <Header />
+
+      {/* User Info & Logout */}
+      <div className="mb-6 flex justify-end">
+        <div className="bg-white px-4 py-2 rounded-xl shadow-sm flex items-center gap-3">
+          <div className="text-right">
+            <p className="text-sm font-semibold text-gray-900">{user?.full_name || user?.email}</p>
+            <p className="text-xs text-gray-500">{user?.email}</p>
+          </div>
+          <button
+            onClick={handleLogout}
+            className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-semibold transition-colors"
+          >
+            Logout
+          </button>
+        </div>
+      </div>
 
       {message && <MessageAlert message={message} />}
 
