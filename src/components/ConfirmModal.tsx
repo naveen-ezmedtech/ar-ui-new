@@ -13,7 +13,7 @@ export const ConfirmModal = ({ isOpen, title, message, onConfirm, onCancel }: Co
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full mx-4 animate-fadeIn">
+      <div className="bg-white rounded-2xl max-w-md w-full mx-4 animate-fadeIn">
         <div className="p-6">
           <div className="flex items-start gap-4">
             <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center flex-shrink-0">

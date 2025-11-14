@@ -1,4 +1,5 @@
 export { Header } from './Header';
+export { ProfileDropdown } from './ProfileDropdown';
 export { MessageAlert } from './MessageAlert';
 export { FileUpload } from './FileUpload';
 export { BatchCallButton } from './BatchCallButton';

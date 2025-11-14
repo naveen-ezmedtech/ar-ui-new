@@ -18,15 +18,15 @@ export const PatientTable = ({ patients, loading, onViewNotes }: PatientTablePro
 
   if (patients.length === 0) {
     return (
-      <div className="bg-white rounded-2xl shadow-sm p-16 text-center">
-        <p className="text-gray-700 text-xl font-medium mb-2">No patient data available</p>
-        <p className="text-gray-500">Upload a CSV, XLSX, or XLS file to get started</p>
+      <div className="bg-gradient-to-br from-cyan-50 via-sky-50 to-cyan-50 rounded-2xl border border-cyan-200/50 backdrop-blur-sm p-16 text-center">
+        <p className="text-cyan-900 text-xl font-medium mb-2">No patient data available</p>
+        <p className="text-cyan-700">Upload a CSV, XLSX, or XLS file to get started</p>
       </div>
     );
   }
 
   return (
-    <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+    <div className="bg-gradient-to-br from-violet-50 via-fuchsia-50 to-violet-50 rounded-2xl shadow-lg border border-violet-200/50 backdrop-blur-sm overflow-hidden">
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead className="bg-gradient-to-r from-green-500 to-emerald-600 text-white">

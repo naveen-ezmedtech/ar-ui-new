@@ -17,7 +17,7 @@ import type { Patient, Message } from './types';
 function App() {
   // Auth state
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<Patient | null>(null);
   const [checkingAuth, setCheckingAuth] = useState(true);
 
   // Existing state
@@ -54,7 +54,7 @@ function App() {
   }, []);
 
   // Handle login
-  const handleLogin = (_token: string, userData: any) => {
+  const handleLogin = (_token: string, userData: Patient) => {
     setIsAuthenticated(true);
     setUser(userData);
   };
@@ -100,7 +100,7 @@ function App() {
     setUploadLoading(true);
     try {
       const response = await uploadCSV(file);
-      showMessage('success', `Parsed ${response.patient_count} patients successfully`);
+      showMessage('success', `Uploaded ${response.patient_count} patients successfully`);
       
       setCurrentFile(response.filename);
       await loadPatientData(response.filename, false, false);
@@ -169,6 +169,15 @@ function App() {
     setShowNotesModal(true);
   };
 
+  const handleUploadNewFile = () => {
+    setCurrentFile('');
+    setPatients([]);
+    if (refreshIntervalRef.current) {
+      clearInterval(refreshIntervalRef.current);
+      refreshIntervalRef.current = null;
+    }
+  };
+
   // Show loading while checking auth
   if (checkingAuth) {
     return (
@@ -185,58 +194,76 @@ function App() {
 
   // Show main dashboard if authenticated
   return (
-    <div className="max-w-7xl mx-auto px-6 py-8">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
       <Header user={user} onLogout={handleLogout} />
+      <div className="max-w-[1920px] mx-auto px-8 py-6 relative z-0">
 
-      {message && <MessageAlert message={message} />}
+        {message && <MessageAlert message={message} />}
 
-      <div className="flex items-center gap-4 mb-8 px-6 py-5 bg-white rounded-2xl shadow-sm flex-wrap">
-        <FileUpload onUpload={handleFileUpload} loading={uploadLoading} />
-        
-        {currentFile && (
-          <>
-            <div className="flex-1 px-4 py-3 bg-purple-50 rounded-xl border-2 border-purple-200">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs text-purple-600 font-semibold uppercase tracking-wide">Current File</p>
-                  <p className="text-sm text-gray-900 font-medium mt-0.5">{currentFile}</p>
-                </div>
-                <span className="px-3 py-1 bg-purple-600 text-white text-xs font-bold rounded-full">
-                  {patients.length} patients
-                </span>
-              </div>
-            </div>
-            
-            <BatchCallButton 
-              onClick={handleBatchCall}
-              disabled={patients.length === 0 || callingInProgress}
-              loading={callingInProgress}
-            />
-            
-            <DownloadButton 
-              filename={currentFile}
-              disabled={patients.length === 0}
-            />
-          </>
+        {/* Upload Section - Show only when no file is uploaded */}
+        {!currentFile && (
+          <div className="mb-8">
+            <FileUpload onUpload={handleFileUpload} loading={uploadLoading} />
+          </div>
         )}
+
+        {/* File Actions Section - Show when file is uploaded */}
+        {currentFile && (
+          <div className="mb-8 px-6 py-4 bg-white rounded-lg shadow-sm border border-gray-200">
+            <div className="flex items-center gap-4 flex-wrap">
+              <div className="flex-1 min-w-[200px] px-4 py-3 bg-gray-50 rounded-lg border border-gray-200">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs text-gray-500 font-semibold uppercase tracking-wide">Current File</p>
+                    <p className="text-sm text-gray-900 font-medium mt-0.5">{currentFile}</p>
+                  </div>
+                  <span className="px-3 py-1 bg-gray-600 text-white text-xs font-semibold rounded-full">
+                    {patients.length} patients
+                  </span>
+                </div>
+              </div>
+              
+              <BatchCallButton 
+                onClick={handleBatchCall}
+                disabled={patients.length === 0 || callingInProgress}
+                loading={callingInProgress}
+              />
+              
+              <DownloadButton 
+                filename={currentFile}
+                disabled={patients.length === 0}
+              />
+
+              <button
+                onClick={handleUploadNewFile}
+                className="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium rounded-lg transition-colors flex items-center gap-2"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                </svg>
+                Upload New File
+              </button>
+            </div>
+          </div>
+        )}
+
+        <PatientTable patients={patients} loading={loading} onViewNotes={handleViewNotes} />
+
+        <ConfirmModal
+          isOpen={showConfirmModal}
+          title="Start Calls"
+          message={`Are you sure you want to start calling ${patients.length} patients?`}
+          onConfirm={confirmBatchCall}
+          onCancel={() => setShowConfirmModal(false)}
+        />
+
+        <NotesModal
+          isOpen={showNotesModal}
+          patientName={selectedPatient?.patient_name || ''}
+          notes={selectedPatient?.notes || ''}
+          onClose={() => setShowNotesModal(false)}
+        />
       </div>
-
-      <PatientTable patients={patients} loading={loading} onViewNotes={handleViewNotes} />
-
-      <ConfirmModal
-        isOpen={showConfirmModal}
-        title="Start Calls"
-        message={`Are you sure you want to start calling ${patients.length} patients?`}
-        onConfirm={confirmBatchCall}
-        onCancel={() => setShowConfirmModal(false)}
-      />
-
-      <NotesModal
-        isOpen={showNotesModal}
-        patientName={selectedPatient?.patient_name || ''}
-        notes={selectedPatient?.notes || ''}
-        onClose={() => setShowNotesModal(false)}
-      />
     </div>
   );
 }
