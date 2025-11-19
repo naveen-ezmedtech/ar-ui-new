@@ -119,6 +119,7 @@ export const getDashboardStats = async (): Promise<{
   paid_patients: Array<{
     patient_name: string;
     invoice_number: string;
+    phone_number: string;
     amount_paid: number;
     payment_completed_at: string | null;
   }>;

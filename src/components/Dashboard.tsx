@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { getDashboardStats } from '../services/api';
 
 interface DashboardStats {
@@ -29,6 +29,7 @@ interface DashboardStats {
   paid_patients: Array<{
     patient_name: string;
     invoice_number: string;
+    phone_number: string;
     amount_paid: number;
     payment_completed_at: string | null;
   }>;
@@ -38,7 +39,6 @@ export const Dashboard = () => {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [showPaidPatientsModal, setShowPaidPatientsModal] = useState(false);
-  const intervalRef = useRef<number | null>(null);
 
   const loadStats = async () => {
     try {
@@ -53,22 +53,9 @@ export const Dashboard = () => {
     }
   };
 
-  // Initial load and setup auto-refresh
+  // Initial load only - no auto-refresh
   useEffect(() => {
     loadStats();
-    
-    // Refresh every 30 seconds
-    intervalRef.current = window.setInterval(() => {
-      loadStats();
-    }, 30000);
-    
-    // Cleanup: stop interval when component unmounts or section changes
-    return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
-      }
-    };
   }, []);
 
   // Expose refresh function so parent can trigger manual refresh
@@ -370,6 +357,9 @@ export const Dashboard = () => {
                       <div className="flex-1">
                         <p className="text-sm font-semibold text-gray-900">{patient.patient_name}</p>
                         <p className="text-xs text-gray-600 mt-1">Invoice: {patient.invoice_number}</p>
+                        {patient.phone_number && (
+                          <p className="text-xs text-gray-600 mt-1">Phone: {patient.phone_number}</p>
+                        )}
                         {patient.payment_completed_at && (
                           <p className="text-xs text-gray-500 mt-1">Paid on: {formatDateTime(patient.payment_completed_at)}</p>
                         )}
