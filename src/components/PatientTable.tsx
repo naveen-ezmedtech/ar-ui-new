@@ -20,11 +20,9 @@ export const PatientTable = ({ patients, loading, onViewNotes, onCallPatient, on
     return (now - timestamp) < 10 * 60 * 1000;
   };
 
-  // Check if invoice is fully paid
+  // Check if invoice is paid (payment_status is completed)
   const isPaid = (patient: Patient): boolean => {
-    const outstanding = parseFloat(patient.outstanding_amount || '0');
-    const amountPaid = parseFloat(patient.amount_paid || '0');
-    return outstanding === 0 && amountPaid > 0;
+    return patient.payment_status === 'completed' && parseFloat(patient.amount_paid || '0') > 0;
   };
 
   const formatCurrency = (amount: string | number): string => {
@@ -85,10 +83,14 @@ export const PatientTable = ({ patients, loading, onViewNotes, onCallPatient, on
                   {isPaid(patient) ? (
                     <div className="flex flex-col">
                       <span className="text-emerald-600 font-bold">Paid</span>
-                      <span className="text-xs text-gray-600 mt-1">Amount: {formatCurrency(patient.amount_paid || '0')}</span>
+                      <span className="text-xs text-gray-600 mt-1">
+                        Amount: {formatCurrency(patient.amount_paid || '0')}
+                      </span>
                     </div>
-                  ) : (
+                  ) : patient.outstanding_amount && patient.outstanding_amount !== '' ? (
                     <span className="text-red-600 font-bold">{patient.outstanding_amount}</span>
+                  ) : (
+                    <span className="text-gray-400">-</span>
                   )}
                 </td>
                 <td className="px-4 py-4 text-sm text-gray-700">{patient.aging_bucket}</td>

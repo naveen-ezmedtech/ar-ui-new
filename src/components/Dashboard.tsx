@@ -202,42 +202,27 @@ export const Dashboard = () => {
         </div>
 
         {/* Total Amount Paid */}
-        {stats.total_amount_paid > 0 && (
-          <div 
-            className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 cursor-pointer hover:shadow-md transition-shadow"
-            onClick={() => setShowPaidPatientsModal(true)}
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-500 font-medium">Total Amount Paid</p>
-                <p className="text-3xl font-bold text-gray-900 mt-2">{formatCurrency(stats.total_amount_paid)}</p>
-                <p className="text-xs text-gray-500 mt-1">Click to view details</p>
-              </div>
-              <div className="p-3 bg-emerald-100 rounded-full">
-                <svg className="w-6 h-6 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
+        <div 
+          className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 cursor-pointer hover:shadow-md transition-shadow"
+          onClick={() => setShowPaidPatientsModal(true)}
+        >
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-500 font-medium">Total Amount Paid</p>
+              <p className="text-3xl font-bold text-gray-900 mt-2">{formatCurrency(stats.total_amount_paid || 0)}</p>
+              <p className="text-xs text-gray-500 mt-1">
+                {stats.paid_patients && stats.paid_patients.length > 0 
+                  ? `${stats.paid_patients.length} payment${stats.paid_patients.length !== 1 ? 's' : ''} • Click to view` 
+                  : 'Click to view details'}
+              </p>
+            </div>
+            <div className="p-3 bg-emerald-100 rounded-full">
+              <svg className="w-6 h-6 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
             </div>
           </div>
-        )}
-
-        {/* Total Files */}
-        {stats.total_amount_paid === 0 && (
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-500 font-medium">Files Uploaded</p>
-                <p className="text-3xl font-bold text-gray-900 mt-2">{stats.total_files}</p>
-              </div>
-              <div className="p-3 bg-purple-100 rounded-full">
-                <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                </svg>
-              </div>
-            </div>
-          </div>
-        )}
+        </div>
       </div>
 
       {/* Calls & Links Stats */}
@@ -272,6 +257,21 @@ export const Dashboard = () => {
           <p className="text-sm text-gray-500 font-medium">Recent Activity (7 days)</p>
           <p className="text-2xl font-bold text-purple-600 mt-2">{stats.recent_calls}</p>
           <p className="text-xs text-gray-500 mt-2">Calls | {stats.recent_uploads} new uploads</p>
+        </div>
+
+        {/* Files Uploaded */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-500 font-medium">Files Uploaded</p>
+              <p className="text-3xl font-bold text-gray-900 mt-2">{stats.total_files}</p>
+            </div>
+            <div className="p-3 bg-purple-100 rounded-full">
+              <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+              </svg>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -381,18 +381,33 @@ export const Dashboard = () => {
                   ))}
                 </div>
               ) : (
-                <div className="text-center py-8">
-                  <p className="text-gray-500">No paid patients found</p>
+                <div className="text-center py-12">
+                  <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-gray-100 mb-4">
+                    <svg className="h-8 w-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <p className="text-gray-500 text-lg font-medium mb-2">No paid patients yet</p>
+                  <p className="text-gray-400 text-sm">Payments will appear here once patients complete their payments</p>
                 </div>
               )}
             </div>
             <div className="px-6 py-4 border-t border-gray-200 bg-gray-50">
               <div className="flex items-center justify-between">
+                <div className="flex flex-col">
+                  <p className="text-sm text-gray-600">
+                    Total Records: <span className="font-semibold text-gray-900">{stats.paid_patients?.length || 0} payment{stats.paid_patients?.length !== 1 ? 's' : ''}</span>
+                  </p>
+                  {stats.paid_patients && stats.paid_patients.length > 0 && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      Unique Patients: <span className="font-semibold text-gray-700">
+                        {new Set(stats.paid_patients.map(p => `${p.patient_name}-${p.invoice_number}`)).size}
+                      </span>
+                    </p>
+                  )}
+                </div>
                 <p className="text-sm text-gray-600">
-                  Total: <span className="font-semibold text-gray-900">{stats.paid_patients?.length || 0} patients</span>
-                </p>
-                <p className="text-sm text-gray-600">
-                  Total Amount: <span className="font-semibold text-emerald-700">{formatCurrency(stats.total_amount_paid)}</span>
+                  Total Amount: <span className="font-semibold text-emerald-700">{formatCurrency(stats.total_amount_paid || 0)}</span>
                 </p>
               </div>
             </div>
