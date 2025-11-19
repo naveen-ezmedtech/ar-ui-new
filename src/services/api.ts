@@ -70,6 +70,7 @@ export const getDashboardStats = async (): Promise<{
   total_invoices: number;
   total_patients: number;
   total_outstanding: number;
+  total_amount_paid: number;
   links_sent: number;
   links_requested: number;
   calls_made: number;

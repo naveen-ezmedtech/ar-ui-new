@@ -5,6 +5,7 @@ interface DashboardStats {
   total_invoices: number;
   total_patients: number;
   total_outstanding: number;
+  total_amount_paid: number;
   links_sent: number;
   links_requested: number;
   calls_made: number;
@@ -168,20 +169,39 @@ export const Dashboard = () => {
           </div>
         </div>
 
-        {/* Total Files */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-500 font-medium">Files Uploaded</p>
-              <p className="text-3xl font-bold text-gray-900 mt-2">{stats.total_files}</p>
-            </div>
-            <div className="p-3 bg-purple-100 rounded-full">
-              <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-              </svg>
+        {/* Total Amount Paid */}
+        {stats.total_amount_paid > 0 && (
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-500 font-medium">Total Amount Paid</p>
+                <p className="text-3xl font-bold text-gray-900 mt-2">{formatCurrency(stats.total_amount_paid)}</p>
+              </div>
+              <div className="p-3 bg-emerald-100 rounded-full">
+                <svg className="w-6 h-6 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
             </div>
           </div>
-        </div>
+        )}
+
+        {/* Total Files */}
+        {stats.total_amount_paid === 0 && (
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-500 font-medium">Files Uploaded</p>
+                <p className="text-3xl font-bold text-gray-900 mt-2">{stats.total_files}</p>
+              </div>
+              <div className="p-3 bg-purple-100 rounded-full">
+                <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                </svg>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Calls & Links Stats */}

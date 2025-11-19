@@ -18,6 +18,22 @@ export const PatientTable = ({ patients, loading, onViewNotes, onCallPatient, ac
     // Consider call active if initiated within last 10 minutes
     return (now - timestamp) < 10 * 60 * 1000;
   };
+
+  // Check if invoice is fully paid
+  const isPaid = (patient: Patient): boolean => {
+    const outstanding = parseFloat(patient.outstanding_amount || '0');
+    const amountPaid = parseFloat(patient.amount_paid || '0');
+    return outstanding === 0 && amountPaid > 0;
+  };
+
+  const formatCurrency = (amount: string | number): string => {
+    const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 2
+    }).format(numAmount);
+  };
   if (loading) {
     return (
       <div className="text-center py-12 text-gray-600 font-medium text-lg">
@@ -63,7 +79,16 @@ export const PatientTable = ({ patients, loading, onViewNotes, onCallPatient, ac
                 <td className="px-4 py-4 text-sm text-gray-900 font-medium">{patient.phone_number}</td>
                 <td className="px-4 py-4 text-sm text-gray-700 font-mono">{patient.invoice_number}</td>
                 <td className="px-4 py-4 text-sm text-gray-900 font-semibold">{patient.price}</td>
-                <td className="px-4 py-4 text-sm text-red-600 font-bold">{patient.outstanding_amount}</td>
+                <td className="px-4 py-4 text-sm">
+                  {isPaid(patient) ? (
+                    <div className="flex flex-col">
+                      <span className="text-emerald-600 font-bold">Paid</span>
+                      <span className="text-xs text-gray-600 mt-1">Amount: {formatCurrency(patient.amount_paid || '0')}</span>
+                    </div>
+                  ) : (
+                    <span className="text-red-600 font-bold">{patient.outstanding_amount}</span>
+                  )}
+                </td>
                 <td className="px-4 py-4 text-sm text-gray-700">{patient.aging_bucket}</td>
                 <td className="px-4 py-4 text-sm">
                   {patient.link_requested ? (
@@ -125,7 +150,7 @@ export const PatientTable = ({ patients, loading, onViewNotes, onCallPatient, ac
                 </td>
                 <td className="px-4 py-4 text-sm">
                   <div className="flex items-center gap-2 flex-wrap">
-                    {onCallPatient && patient.phone_number && !isCallActive(patient.phone_number) && (
+                    {!isPaid(patient) && onCallPatient && patient.phone_number && !isCallActive(patient.phone_number) && (
                       <button
                         onClick={() => onCallPatient(patient)}
                         className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-teal-600 text-teal-600 rounded-lg text-xs font-semibold hover:bg-teal-50 transition-colors"
