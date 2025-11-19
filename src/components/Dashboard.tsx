@@ -57,10 +57,10 @@ export const Dashboard = () => {
   useEffect(() => {
     loadStats();
     
-    // Refresh every 5 seconds to get updated call summaries quickly
+    // Refresh every 30 seconds
     intervalRef.current = window.setInterval(() => {
       loadStats();
-    }, 5000);
+    }, 30000);
     
     // Cleanup: stop interval when component unmounts or section changes
     return () => {

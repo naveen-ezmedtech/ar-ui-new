@@ -265,28 +265,16 @@ function App() {
       
       showMessage('success', response.message);
       
-      // Calls are initiated, keep status for auto-refresh (only if in upload section)
+      // Immediately refresh patient table to show updated data (silent)
       if (activeSection === 'upload') {
-      startAutoRefresh();
-        setTimeout(() => loadPatientData(null, true), 1000);  // Load all from DB
+        loadPatientData(null, true, true);  // Load all from DB silently
+        startAutoRefresh();  // Start auto-refresh for continued updates
       }
       
-      // Refresh dashboard stats after calls and keep refreshing to catch updated summaries
+      // Refresh dashboard stats after calls
       const refreshDashboard = (window as { refreshDashboard?: () => void }).refreshDashboard;
       if (refreshDashboard) {
-        // Immediate refresh
-        setTimeout(() => refreshDashboard(), 2000);
-        
-        // Continue refreshing every 3 seconds for 30 seconds to catch updated call summaries
-        const refreshInterval = setInterval(() => {
-          if (refreshDashboard) {
-            refreshDashboard();
-          }
-        }, 3000);
-        
-        setTimeout(() => {
-          clearInterval(refreshInterval);
-        }, 30000);
+        setTimeout(() => refreshDashboard(), 2000);  // Refresh after 2 seconds
       }
     } catch (error) {
       const err = error as { response?: { data?: { detail?: string } } };
@@ -326,7 +314,7 @@ function App() {
 
       // Only refresh if we're in the upload section (where patient table is visible)
       if (activeSection === 'upload') {
-        loadPatientData(null, true);  // Load all from database
+        loadPatientData(null, true, true);  // Load all from database (silent)
       }
       
         count++;
@@ -404,27 +392,22 @@ function App() {
         localStorage.setItem('activeCalls', JSON.stringify(Array.from(newActiveCalls.entries())));
         
         showMessage('success', response.message || `Call initiated to ${patient.patient_name}`);
-        // Refresh patient data and dashboard after a short delay to show updated notes
-        setTimeout(() => {
-          loadPatientData(null, true, true);  // Load all from database
-          // Refresh dashboard if on dashboard section
-          const refreshDashboard = (window as { refreshDashboard?: () => void }).refreshDashboard;
-          if (refreshDashboard && activeSection === 'dashboard') {
-            refreshDashboard();
-          }
-        }, 2000);
-        
-        // Also refresh dashboard periodically after call to catch updated summaries
-        const refreshInterval = setInterval(() => {
-          const refreshDashboard = (window as { refreshDashboard?: () => void }).refreshDashboard;
-          if (refreshDashboard && activeSection === 'dashboard') {
-            refreshDashboard();
-          }
-        }, 3000); // Refresh every 3 seconds for 30 seconds after call
-        
-        setTimeout(() => {
-          clearInterval(refreshInterval);
-        }, 30000);
+        // Silently refresh patient table to show updated data
+        if (activeSection === 'upload') {
+          loadPatientData(null, true, true);  // Load all from database silently
+          
+          // Also refresh periodically to catch updated call summaries (silent)
+          let refreshCount = 0;
+          const maxRefreshes = 10; // Refresh 10 times over 30 seconds
+          const refreshInterval = setInterval(() => {
+            if (activeSection === 'upload' && refreshCount < maxRefreshes) {
+              loadPatientData(null, true, true);  // Silent refresh
+              refreshCount++;
+            } else {
+              clearInterval(refreshInterval);
+            }
+          }, 3000); // Every 3 seconds
+        }
       } else {
         showMessage('error', response.message || 'Failed to initiate call');
       }
