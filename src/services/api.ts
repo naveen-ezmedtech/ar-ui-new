@@ -128,4 +128,39 @@ export const getDashboardStats = async (): Promise<{
   return response.data;
 };
 
+// Get file list with upload dates
+export const getFileListWithDates = async (): Promise<{ success: boolean; files: Array<{ filename: string; upload_date: string | null; patient_count: number; new_count?: number; updated_count?: number; error_count?: number; upload_id?: number }>; count: number }> => {
+  const response = await api.get('/files/list');
+  return response.data;
+};
+
+// Get file upload history
+export const getFileUploadHistory = async (): Promise<{ success: boolean; history: Array<{ id: number; filename: string; uploaded_at: string | null; patient_count: number; new_count: number; updated_count: number; error_count: number; created_at: string | null }>; count: number }> => {
+  const response = await api.get('/files/history');
+  return response.data;
+};
+
+// Get patients by upload ID
+export const getPatientsByUploadId = async (uploadId: number): Promise<{ success: boolean; filename: string; uploaded_at: string | null; count: number; patients: Patient[]; upload_stats: { patient_count: number; new_count: number; updated_count: number; error_count: number } }> => {
+  const response = await api.get(`/upload/${uploadId}/patients`);
+  return response.data;
+};
+
+// Get CSV data with option to filter by original source
+export const getCSVDataByOriginal = async (filename: string, includeOutput: boolean = true): Promise<{ success: boolean; filename: string; count: number; patients: Patient[] }> => {
+  const response = await api.get(`/csv-data/${filename}`, {
+    params: { include_output: includeOutput, filter_by_original: true }
+  });
+  return response.data;
+};
+
+// Get calls grouped by date for calendar
+export const getCallsByDate = async (startDate?: string, endDate?: string): Promise<{ calls_by_date: Record<string, Array<{ patient_name: string; invoice_number: string; called_at: string; call_status: string; outstanding_amount: number }>> }> => {
+  const params: { start_date?: string; end_date?: string } = {};
+  if (startDate) params.start_date = startDate;
+  if (endDate) params.end_date = endDate;
+  const response = await api.get('/calendar/calls', { params });
+  return response.data;
+};
+
 export default api;

@@ -11,7 +11,8 @@ import {
   NotesModal,
   CallHistoryModal,
   LoginPage,
-  Dashboard
+  Dashboard,
+  InvoiceList
 } from './components';
 import { uploadCSV, getCSVData, getAllPatients, getAvailableFiles, triggerBatchCall, callPatient } from './services/api';
 import type { Patient, Message, User } from './types';
@@ -28,7 +29,7 @@ function App() {
   const [availableFiles, setAvailableFiles] = useState<string[]>([]);
   const [patients, setPatients] = useState<Patient[]>([]);
   const [loading, setLoading] = useState(false);
-  const [activeSection, setActiveSection] = useState<'dashboard' | 'upload'>('dashboard');  // Dashboard by default
+  const [activeSection, setActiveSection] = useState<'dashboard' | 'upload' | 'invoice-list'>('dashboard');  // Dashboard by default
   const [uploadLoading, setUploadLoading] = useState(false);
   const [message, setMessage] = useState<Message | null>(null);
   const [callingInProgress, setCallingInProgress] = useState(false);
@@ -193,7 +194,53 @@ function App() {
         : file;
       
       const response = await uploadCSV(sanitizedFile);
-      showMessage('success', `Uploaded ${response.patient_count} patients successfully (${response.new_count || 0} new, ${response.updated_count || 0} updated)`);
+      const errorCount = response.errors?.length || 0;
+      
+      // Use the message from backend if available, otherwise construct one
+      if (response.message) {
+        // Show success message
+        showMessage('success', response.message);
+        
+        // If there are errors, also show them
+        if (errorCount > 0) {
+          const errorDetails = response.errors?.slice(0, 3).map((e: any) => {
+            const patient = e.patient_name || 'Unknown';
+            const invoice = e.invoice_number || '';
+            const error = e.error || 'Unknown error';
+            return `${patient} (${invoice}): ${error.substring(0, 50)}${error.length > 50 ? '...' : ''}`;
+          }).join('; ') || '';
+          
+          setTimeout(() => {
+            showMessage(
+              'error',
+              `${errorCount} error(s) occurred during upload. ${errorCount <= 3 ? errorDetails : errorDetails + '...'}`
+            );
+          }, 1000);
+        }
+      } else {
+        const newCount = response.new_count || 0;
+        const updatedCount = response.updated_count || 0;
+        if (newCount > 0 || updatedCount > 0) {
+          showMessage('success', `Uploaded ${response.patient_count} patients successfully (${newCount} new, ${updatedCount} updated)`);
+          if (errorCount > 0) {
+            setTimeout(() => {
+              showMessage('error', `${errorCount} error(s) occurred during upload. Check console for details.`);
+            }, 1000);
+          }
+        } else {
+          showMessage('info', `Processed ${response.patient_count} patients. All records already exist in database.`);
+          if (errorCount > 0) {
+            setTimeout(() => {
+              showMessage('error', `${errorCount} error(s) occurred during upload. Check console for details.`);
+            }, 1000);
+          }
+        }
+      }
+      
+      // Log errors to console for debugging
+      if (errorCount > 0 && response.errors) {
+        console.error('Upload errors:', response.errors);
+      }
       
       // Store filename and set as selected
       const uploadedFilename = response.filename || '';
@@ -499,13 +546,41 @@ function App() {
                 Upload CSV
               </div>
             </button>
+            <button
+              onClick={() => {
+                setActiveSection('invoice-list');
+              }}
+              className={`flex-1 px-6 py-4 font-semibold text-sm transition-colors ${
+                activeSection === 'invoice-list'
+                  ? 'text-teal-600 border-b-2 border-teal-600 bg-teal-50'
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+              }`}
+            >
+              <div className="flex items-center justify-center gap-2">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                Invoice List
+              </div>
+            </button>
           </div>
         </div>
 
         {/* Dashboard Section */}
         {activeSection === 'dashboard' && (
-          <div className="mb-8">
+          <div className="mb-8 space-y-6">
             <Dashboard />
+          </div>
+        )}
+
+        {/* Invoice List Section */}
+        {activeSection === 'invoice-list' && (
+          <div className="mb-8">
+            <InvoiceList
+              onFileSelect={() => {
+                // Upload selected, stay on invoice-list to show invoices
+              }}
+            />
           </div>
         )}
 
@@ -585,14 +660,17 @@ function App() {
             </div>
 
             {/* Patient Table */}
-        <PatientTable 
-          patients={patients} 
-          loading={loading} 
-          onViewNotes={handleViewNotes}
-          onCallPatient={handleCallPatient}
-          onViewCallHistory={handleViewCallHistory}
-          activeCalls={activeCalls}
-        />
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">All Patients</h3>
+              <PatientTable 
+                patients={patients} 
+                loading={loading} 
+                onViewNotes={handleViewNotes}
+                onCallPatient={handleCallPatient}
+                onViewCallHistory={handleViewCallHistory}
+                activeCalls={activeCalls}
+              />
+            </div>
           </div>
         )}
 

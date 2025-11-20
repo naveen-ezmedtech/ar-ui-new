@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 import { getDashboardStats } from '../services/api';
+import { CalendarView } from './CalendarView';
+import { formatDateTime } from '../utils/timezone';
 
 interface DashboardStats {
   total_invoices: number;
@@ -58,6 +60,7 @@ export const Dashboard = () => {
     loadStats();
   }, []);
 
+
   // Expose refresh function so parent can trigger manual refresh
   useEffect(() => {
     const dashboardRefresh = () => {
@@ -100,22 +103,7 @@ export const Dashboard = () => {
     }).format(amount);
   };
 
-  const formatDateTime = (dateString: string | null) => {
-    if (!dateString) return 'N/A';
-    try {
-      const date = new Date(dateString);
-      return new Intl.DateTimeFormat('en-US', {
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric',
-        hour: 'numeric',
-        minute: '2-digit',
-        hour12: true
-      }).format(date);
-    } catch {
-      return dateString;
-    }
-  };
+
 
   // Show empty state if no data
   if (isEmpty) {
@@ -141,10 +129,15 @@ export const Dashboard = () => {
 
   return (
     <div className="space-y-6">
-      {/* Main Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* All Stats Grid - 9 cards in 2 rows (4 in first row, 5 in second row, equally distributed) */}
+      <div 
+        className="grid gap-4"
+        style={{
+          gridTemplateColumns: 'repeat(20, 1fr)'
+        }}
+      >
         {/* Total Invoices */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 col-span-1 md:col-span-10 lg:col-span-5">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-500 font-medium">Total Invoices</p>
@@ -159,7 +152,7 @@ export const Dashboard = () => {
         </div>
 
         {/* Total Patients */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 col-span-1 md:col-span-10 lg:col-span-5">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-500 font-medium">Total Patients</p>
@@ -174,7 +167,7 @@ export const Dashboard = () => {
         </div>
 
         {/* Total Outstanding */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 col-span-1 md:col-span-10 lg:col-span-5">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-500 font-medium">Total Outstanding</p>
@@ -190,7 +183,7 @@ export const Dashboard = () => {
 
         {/* Total Amount Paid */}
         <div 
-          className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 cursor-pointer hover:shadow-md transition-shadow"
+          className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 cursor-pointer hover:shadow-md transition-shadow col-span-1 md:col-span-10 lg:col-span-5"
           onClick={() => setShowPaidPatientsModal(true)}
         >
           <div className="flex items-center justify-between">
@@ -210,15 +203,12 @@ export const Dashboard = () => {
             </div>
           </div>
         </div>
-      </div>
 
-      {/* Calls & Links Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Calls Made */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 col-span-1 md:col-span-8 lg:col-span-4">
           <p className="text-sm text-gray-500 font-medium">Calls Made</p>
           <p className="text-2xl font-bold text-teal-600 mt-2">{stats.calls_made}</p>
-          <div className="mt-3 flex gap-2 text-xs">
+          <div className="mt-3 flex gap-2 text-xs flex-wrap">
             <span className="px-2 py-1 bg-green-100 text-green-700 rounded">Completed: {stats.calls_completed}</span>
             <span className="px-2 py-1 bg-yellow-100 text-yellow-700 rounded">Pending: {stats.calls_pending}</span>
             <span className="px-2 py-1 bg-red-100 text-red-700 rounded">Failed: {stats.calls_failed}</span>
@@ -226,28 +216,28 @@ export const Dashboard = () => {
         </div>
 
         {/* Links Sent */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 col-span-1 md:col-span-8 lg:col-span-4">
           <p className="text-sm text-gray-500 font-medium">Payment Links Sent</p>
           <p className="text-2xl font-bold text-blue-600 mt-2">{stats.links_sent}</p>
           <p className="text-xs text-gray-500 mt-2">Requested: {stats.links_requested}</p>
         </div>
 
         {/* With Estimated Date */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 col-span-1 md:col-span-8 lg:col-span-4">
           <p className="text-sm text-gray-500 font-medium">With Payment Date</p>
           <p className="text-2xl font-bold text-indigo-600 mt-2">{stats.with_estimated_date}</p>
           <p className="text-xs text-gray-500 mt-2">Out of {stats.total_invoices} invoices</p>
         </div>
 
         {/* Recent Activity */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 col-span-1 md:col-span-8 lg:col-span-4">
           <p className="text-sm text-gray-500 font-medium">Recent Activity (7 days)</p>
           <p className="text-2xl font-bold text-purple-600 mt-2">{stats.recent_calls}</p>
           <p className="text-xs text-gray-500 mt-2">Calls | {stats.recent_uploads} new uploads</p>
         </div>
 
         {/* Files Uploaded */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 col-span-1 md:col-span-8 lg:col-span-4">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-500 font-medium">Files Uploaded</p>
@@ -262,41 +252,12 @@ export const Dashboard = () => {
         </div>
       </div>
 
-      {/* Recent Calls Section */}
-      {stats.recent_calls_list && stats.recent_calls_list.length > 0 && (
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Calls</h3>
-          <div className="space-y-3 max-h-96 overflow-y-auto">
-            {stats.recent_calls_list.map((call, index) => (
-              <div key={index} className="flex items-start justify-between p-3 bg-gray-50 rounded-lg border border-gray-200">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-1">
-                    <p className="text-sm font-semibold text-gray-900">{call.patient_name}</p>
-                    <span className={`px-2 py-0.5 rounded text-xs font-medium ${
-                      call.call_status === 'completed' 
-                        ? 'bg-green-100 text-green-800' 
-                        : call.call_status === 'failed'
-                        ? 'bg-red-100 text-red-800'
-                        : 'bg-yellow-100 text-yellow-800'
-                    }`}>
-                      {call.call_status}
-                    </span>
-                  </div>
-                  <p className="text-xs text-gray-600 mb-1">Invoice: {call.invoice_number} | Phone: {call.phone_number}</p>
-                  {call.notes && (
-                    <p className="text-xs text-gray-500 italic mt-1 whitespace-pre-wrap break-words">{call.notes}</p>
-                  )}
-                  <p className="text-xs text-gray-400 mt-1">{formatDateTime(call.called_at)}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Distribution Charts */}
+      {/* Calendar and Outstanding by Aging Bucket Side by Side */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Aging Bucket Distribution */}
+        {/* Calendar Section */}
+        <CalendarView />
+
+        {/* Outstanding by Aging Bucket */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Outstanding by Aging Bucket</h3>
           <div className="space-y-3">
@@ -315,24 +276,47 @@ export const Dashboard = () => {
             )}
           </div>
         </div>
+      </div>
 
-        {/* Status Distribution */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Call Status Distribution</h3>
-          <div className="space-y-3">
-            {stats.status_distribution.length > 0 ? (
-              stats.status_distribution.map((item, index) => (
-                <div key={index} className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-gray-700 capitalize">{item.status}</span>
-                  <span className="text-sm font-semibold text-gray-900">{item.count}</span>
+      {/* Recent Calls Section - Below Calendar */}
+      {stats.recent_calls_list && stats.recent_calls_list.length > 0 && (
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mt-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Calls</h3>
+          <div className="space-y-3 max-h-96 overflow-y-auto pr-2">
+            {stats.recent_calls_list.slice(0, 9).map((call, index) => {
+              // Filter out "value_or_empty" and show N/A instead
+              const invoiceNumber = call.invoice_number && call.invoice_number !== 'value_or_empty' 
+                ? call.invoice_number 
+                : 'N/A';
+              
+              return (
+                <div key={index} className="flex items-start justify-between p-3 bg-gray-50 rounded-lg border border-gray-200">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1 flex-wrap">
+                      <p className="text-sm font-semibold text-gray-900 truncate">{call.patient_name}</p>
+                      <span className={`px-2 py-0.5 rounded text-xs font-medium whitespace-nowrap ${
+                        call.call_status === 'completed' 
+                          ? 'bg-green-100 text-green-800' 
+                          : call.call_status === 'failed'
+                          ? 'bg-red-100 text-red-800'
+                          : 'bg-yellow-100 text-yellow-800'
+                      }`}>
+                        {call.call_status}
+                      </span>
+                    </div>
+                    <p className="text-xs text-gray-600 mb-1 truncate">Invoice: {invoiceNumber}</p>
+                    <p className="text-xs text-gray-600 mb-1 truncate">Phone: {call.phone_number}</p>
+                    {call.notes && (
+                      <p className="text-xs text-gray-500 italic mt-1 whitespace-pre-wrap break-words">{call.notes}</p>
+                    )}
+                    <p className="text-xs text-gray-400 mt-1">{formatDateTime(call.called_at)}</p>
+                  </div>
                 </div>
-              ))
-            ) : (
-              <p className="text-sm text-gray-500 text-center py-4">No data available</p>
-            )}
+              );
+            })}
           </div>
         </div>
-      </div>
+      )}
 
       {/* Paid Patients Modal */}
       {showPaidPatientsModal && (

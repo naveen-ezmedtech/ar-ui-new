@@ -59,6 +59,7 @@ export const PatientTable = ({ patients, loading, onViewNotes, onCallPatient, on
               <th className="px-4 py-4 text-left text-xs font-semibold uppercase tracking-wider text-teal-700">Patient Name</th>
               <th className="px-4 py-4 text-left text-xs font-semibold uppercase tracking-wider text-teal-700">Phone Number</th>
               <th className="px-4 py-4 text-left text-xs font-semibold uppercase tracking-wider text-teal-700">Invoice #</th>
+              <th className="px-4 py-4 text-left text-xs font-semibold uppercase tracking-wider text-teal-700">Invoice Date</th>
               <th className="px-4 py-4 text-left text-xs font-semibold uppercase tracking-wider text-teal-700">Invoice amount</th>
               <th className="px-4 py-4 text-left text-xs font-semibold uppercase tracking-wider text-teal-700">Outstanding balance</th>
               <th className="px-4 py-4 text-left text-xs font-semibold uppercase tracking-wider text-teal-700">Aging</th>
@@ -78,6 +79,17 @@ export const PatientTable = ({ patients, loading, onViewNotes, onCallPatient, on
                 <td className="px-4 py-4 text-sm text-gray-900">{patient.patient_name}</td>
                 <td className="px-4 py-4 text-sm text-gray-900 font-medium">{patient.phone_number}</td>
                 <td className="px-4 py-4 text-sm text-gray-700 font-mono">{patient.invoice_number}</td>
+                <td className="px-4 py-4 text-sm text-gray-700">
+                  {patient.invoice_date ? (
+                    new Date(patient.invoice_date).toLocaleDateString('en-US', {
+                      year: 'numeric',
+                      month: 'short',
+                      day: 'numeric'
+                    })
+                  ) : (
+                    <span className="text-gray-400">-</span>
+                  )}
+                </td>
                 <td className="px-4 py-4 text-sm text-gray-900 font-semibold">{patient.price}</td>
                 <td className="px-4 py-4 text-sm">
                   {isPaid(patient) ? (

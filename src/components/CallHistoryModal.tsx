@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { FiX, FiPhone, FiClock } from 'react-icons/fi';
 import { getCallHistory } from '../services/api';
+import { formatDateTime } from '../utils/timezone';
 
 interface CallHistoryModalProps {
   isOpen: boolean;
@@ -46,22 +47,6 @@ export const CallHistoryModal = ({ isOpen, patientName, phoneNumber, invoiceNumb
     }
   };
 
-  const formatDateTime = (dateString: string | null) => {
-    if (!dateString) return 'N/A';
-    try {
-      const date = new Date(dateString);
-      return new Intl.DateTimeFormat('en-US', {
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric',
-        hour: 'numeric',
-        minute: '2-digit',
-        hour12: true
-      }).format(date);
-    } catch {
-      return dateString;
-    }
-  };
 
   if (!isOpen) return null;
 

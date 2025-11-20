@@ -12,6 +12,7 @@ export interface Patient {
   outstanding_amount: string;
   aging_bucket: string;
   notes: string;
+  invoice_date?: string; // Invoice date from CSV
   link_requested?: string;
   link_sent?: string;
   estimated_date?: string;
@@ -28,6 +29,20 @@ export interface CSVFile {
   size: number;
   last_modified: string;
   patient_count: number;
+}
+
+export interface FileWithDate {
+  filename: string;
+  upload_date: string | null;
+  patient_count: number;
+}
+
+export interface CalendarCall {
+  patient_name: string;
+  invoice_number: string;
+  called_at: string;
+  call_status: string;
+  outstanding_amount: number;
 }
 
 export interface BatchCallResult {
