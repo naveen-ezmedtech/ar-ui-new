@@ -30,8 +30,15 @@
     "globals": "^16.5.0",
     "postcss": "^8.5.6",
     "tailwindcss": "^3.4.1",
+    "terser": "^5.44.1",
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.46.3",
     "vite": "^5.4.11"
-  }
+  },
+  "sideEffects": [
+    "**/*.css",
+    "**/*.scss",
+    "src/components/SSOLogin.tsx",
+    "src/components/UserManagement.tsx"
+  ]
 }

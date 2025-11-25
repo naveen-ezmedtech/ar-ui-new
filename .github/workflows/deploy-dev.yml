@@ -30,10 +30,18 @@ jobs:
             cp /home/ubuntu/ar-ui/.env .env
             
             echo "📚 Installing dependencies..."
-            npm ci --prefer-offline
+            rm -f package-lock.json
+            npm install --legacy-peer-deps
             
             echo "🏗️  Building production bundle..."
             npm run build
+            
+            echo "🔍 Verifying build..."
+            # Check that critical components are in the build
+            if ! grep -q "Authorization" dist/assets/*.js; then
+              echo "❌ Build verification failed: Authorization interceptor missing"
+              exit 1
+            fi
             
             echo "📁 Deploying to nginx..."
             sudo rm -rf /var/www/ar-ui/html/*
