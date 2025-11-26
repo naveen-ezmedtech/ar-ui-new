@@ -320,7 +320,7 @@ export const CalendarView = ({ onDateSelect }: CalendarViewProps) => {
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 mb-0.5">
                               <p className="text-xs font-semibold text-gray-900 truncate">
-                                {call.patient_name}
+                                {`${call.patient_first_name || ''} ${call.patient_last_name || ''}`.trim() || 'Unknown'}
                               </p>
                               <span className="text-xs text-gray-500">•</span>
                               <span className="text-xs text-gray-600 truncate">

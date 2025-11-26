@@ -45,6 +45,35 @@ export const getCSVData = async (filename: string, includeOutput: boolean = true
   return response.data;
 };
 
+// Get patient details by ID or patient identifiers
+export const getPatientDetails = async (
+  invoiceId?: number,
+  phoneNumber?: string,
+  invoiceNumber?: string,
+  patientFirstName?: string,
+  patientLastName?: string
+): Promise<{ success: boolean; patient: Patient }> => {
+  const params: any = {};
+  if (invoiceId) {
+    params.invoice_id = invoiceId;
+  }
+  if (phoneNumber) {
+    params.phone_number = phoneNumber;
+  }
+  if (invoiceNumber) {
+    params.invoice_number = invoiceNumber;
+  }
+  if (patientFirstName) {
+    params.patient_first_name = patientFirstName;
+  }
+  if (patientLastName) {
+    params.patient_last_name = patientLastName;
+  }
+  
+  const response = await api.get('/patients/details', { params });
+  return response.data;
+};
+
 // Get all patients from database (recommended)
 export const getAllPatients = async (sourceFilename?: string): Promise<{ success: boolean; count: number; patients: Patient[] }> => {
   const response = await api.get('/patients', {
@@ -94,18 +123,21 @@ export const triggerBatchCall = async (
 export const callPatient = async (
   phoneNumber: string, 
   invoiceNumber?: string, 
-  patientName?: string
+  patientFirstName?: string,
+  patientLastName?: string
 ): Promise<{ 
   success: boolean; 
   message: string;
-  patient_name?: string;
+  patient_first_name?: string;
+  patient_last_name?: string;
   invoice_number?: string;
   outstanding_amount?: string;
   conversation_id?: string;
 }> => {
-  const params: { invoice_number?: string; patient_name?: string } = {};
+  const params: { invoice_number?: string; patient_first_name?: string; patient_last_name?: string } = {};
   if (invoiceNumber) params.invoice_number = invoiceNumber;
-  if (patientName) params.patient_name = patientName;
+  if (patientFirstName) params.patient_first_name = patientFirstName;
+  if (patientLastName) params.patient_last_name = patientLastName;
   
   const response = await api.post(`/call-patient/${phoneNumber}`, null, {
     params
@@ -116,12 +148,14 @@ export const callPatient = async (
 // Get call history for a patient
 export const getCallHistory = async (phoneNumber: string, invoiceNumber?: string): Promise<{
   success: boolean;
-  patient_name: string;
+  patient_first_name: string;
+  patient_last_name: string;
   invoice_number: string;
   phone_number: string;
   calls: Array<{
     id: number;
-    patient_name: string;
+    patient_first_name: string;
+    patient_last_name: string;
     phone_number: string;
     invoice_number: string;
     called_at: string | null;
@@ -157,7 +191,8 @@ export const getDashboardStats = async (): Promise<{
   aging_distribution: Array<{ bucket: string; count: number; total_amount: number }>;
   status_distribution: Array<{ status: string; count: number }>;
   recent_calls_list: Array<{
-    patient_name: string;
+    patient_first_name: string;
+    patient_last_name: string;
     phone_number: string;
     invoice_number: string;
     called_at: string | null;
@@ -165,7 +200,8 @@ export const getDashboardStats = async (): Promise<{
     notes: string;
   }>;
   paid_patients: Array<{
-    patient_name: string;
+    patient_first_name: string;
+    patient_last_name: string;
     invoice_number: string;
     phone_number: string;
     amount_paid: number;
@@ -204,7 +240,7 @@ export const getCSVDataByOriginal = async (filename: string, includeOutput: bool
 };
 
 // Get calls grouped by date for calendar
-export const getCallsByDate = async (startDate?: string, endDate?: string): Promise<{ calls_by_date: Record<string, Array<{ patient_name: string; invoice_number: string; called_at: string; call_status: string; outstanding_amount: number }>> }> => {
+export const getCallsByDate = async (startDate?: string, endDate?: string): Promise<{ calls_by_date: Record<string, Array<{ patient_first_name: string; patient_last_name: string; invoice_number: string; called_at: string; call_status: string; outstanding_amount: number }>> }> => {
   const params: { start_date?: string; end_date?: string } = {};
   if (startDate) params.start_date = startDate;
   if (endDate) params.end_date = endDate;

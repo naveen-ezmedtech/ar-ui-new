@@ -7,10 +7,11 @@ interface PatientTableProps {
   onViewNotes: (patient: Patient) => void;
   onCallPatient?: (patient: Patient) => void;
   onViewCallHistory?: (patient: Patient) => void;
+  onViewDetails?: (patient: Patient) => void;
   activeCalls?: Map<string, number>;
 }
 
-export const PatientTable = ({ patients, loading, onViewNotes, onCallPatient, onViewCallHistory, activeCalls = new Map() }: PatientTableProps) => {
+export const PatientTable = ({ patients, loading, onViewNotes, onCallPatient, onViewCallHistory, onViewDetails, activeCalls = new Map() }: PatientTableProps) => {
   // Check if call is currently active (only for the first 5 minutes after initiation)
   // This allows users to call again after the call completes
   const isCallActive = (phoneNumber: string): boolean => {
@@ -43,12 +44,20 @@ export const PatientTable = ({ patients, loading, onViewNotes, onCallPatient, on
     }).format(numAmount);
   };
 
+  // Helper function to get full name
+  const getFullName = (patient: Patient): string => {
+    const first = patient.patient_first_name || '';
+    const last = patient.patient_last_name || '';
+    return `${first} ${last}`.trim() || 'Unknown';
+  };
+
   // Check if patient has missing data
   const hasMissingData = (patient: Patient): boolean => {
     const phone = patient.phone_number && patient.phone_number.toLowerCase() !== 'nan' && patient.phone_number.length >= 10;
     const invoice = patient.invoice_number && patient.invoice_number.toLowerCase() !== 'nan' && patient.invoice_number !== '';
-    const name = patient.patient_name && patient.patient_name.toLowerCase() !== 'nan' && patient.patient_name !== '';
-    return !phone || !invoice || !name;
+    const firstName = patient.patient_first_name && patient.patient_first_name.toLowerCase() !== 'nan' && patient.patient_first_name !== '';
+    const lastName = patient.patient_last_name && patient.patient_last_name.toLowerCase() !== 'nan' && patient.patient_last_name !== '';
+    return !phone || !invoice || !firstName || !lastName;
   };
 
   // Separate patients into complete and missing records
@@ -85,6 +94,7 @@ export const PatientTable = ({ patients, loading, onViewNotes, onCallPatient, on
               <th className="px-4 py-4 text-left text-xs font-semibold uppercase tracking-wider text-teal-700">Invoice amount</th>
               <th className="px-4 py-4 text-left text-xs font-semibold uppercase tracking-wider text-teal-700">Outstanding balance</th>
               <th className="px-4 py-4 text-left text-xs font-semibold uppercase tracking-wider text-teal-700">Aging</th>
+              <th className="px-4 py-4 text-left text-xs font-semibold uppercase tracking-wider text-teal-700 min-w-[200px]">Coverage Notes</th>
               <th className="px-4 py-4 text-left text-xs font-semibold uppercase tracking-wider text-teal-700">Link Requested</th>
               <th className="px-4 py-4 text-left text-xs font-semibold uppercase tracking-wider text-teal-700">Link Sent</th>
               <th className="px-4 py-4 text-left text-xs font-semibold uppercase tracking-wider text-teal-700">Est. Date</th>
@@ -100,8 +110,20 @@ export const PatientTable = ({ patients, loading, onViewNotes, onCallPatient, on
             {completePatients.map((patient, index) => (
               <tr key={`complete-${index}`} className="hover:bg-gray-50 transition-colors">
                 <td className="px-4 py-4 text-sm text-gray-900">
-                  {patient.patient_name && patient.patient_name.toLowerCase() !== 'nan' ? (
-                    patient.patient_name
+                  {getFullName(patient) !== 'Unknown' ? (
+                    <button
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        if (onViewDetails) {
+                          onViewDetails(patient);
+                        }
+                      }}
+                      className="text-teal-600 hover:text-teal-800 hover:underline font-medium transition-colors cursor-pointer"
+                      title={`Click to view full details for ${getFullName(patient)}`}
+                    >
+                      {getFullName(patient)}
+                    </button>
                   ) : (
                     <span className="text-red-500 italic" title="Patient name is missing">Missing</span>
                   )}
@@ -149,6 +171,17 @@ export const PatientTable = ({ patients, loading, onViewNotes, onCallPatient, on
                   )}
                 </td>
                 <td className="px-4 py-4 text-sm text-gray-700">{patient.aging_bucket}</td>
+                <td className="px-4 py-4 text-sm min-w-[200px] max-w-md">
+                  {patient.coverage_notes && patient.coverage_notes.trim() ? (
+                    <div className="group relative">
+                      <p className="text-xs text-gray-700 leading-relaxed whitespace-pre-wrap break-words max-h-32 overflow-y-auto">
+                        {patient.coverage_notes}
+                      </p>
+                    </div>
+                  ) : (
+                    <span className="text-gray-400 text-xs">-</span>
+                  )}
+                </td>
                 <td className="px-4 py-4 text-sm">
                   {patient.link_requested ? (
                     <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded-md text-xs font-medium">{patient.link_requested}</span>
@@ -195,7 +228,7 @@ export const PatientTable = ({ patients, loading, onViewNotes, onCallPatient, on
                       }
                     }}
                     className="px-2 py-1 bg-gray-100 text-gray-700 rounded-md text-xs font-semibold hover:bg-gray-200 transition-colors cursor-pointer"
-                    title={`Click to view call history for ${patient.patient_name} - Invoice ${patient.invoice_number}`}
+                    title={`Click to view call history for ${getFullName(patient)} - Invoice ${patient.invoice_number}`}
                   >
                     {patient.call_count || 0}
                   </button>
@@ -249,7 +282,7 @@ export const PatientTable = ({ patients, loading, onViewNotes, onCallPatient, on
                           <FiPhone size={14} />
                           Missing Invoice
                         </button>
-                      ) : !patient.patient_name || patient.patient_name.toLowerCase() === 'nan' ? (
+                      ) : !patient.patient_first_name || !patient.patient_last_name || patient.patient_first_name.toLowerCase() === 'nan' || patient.patient_last_name.toLowerCase() === 'nan' ? (
                         <button
                           disabled
                           className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-red-300 text-red-500 rounded-lg text-xs font-semibold cursor-not-allowed bg-red-50"
@@ -296,7 +329,7 @@ export const PatientTable = ({ patients, loading, onViewNotes, onCallPatient, on
             {/* Teal Separator Line */}
             {completePatients.length > 0 && missingPatients.length > 0 && (
               <tr>
-                <td colSpan={15} className="px-0 py-0">
+                <td colSpan={16} className="px-0 py-0">
                   <div className="h-px bg-teal-700 w-full mx-auto"></div>
                 </td>
               </tr>
@@ -306,8 +339,20 @@ export const PatientTable = ({ patients, loading, onViewNotes, onCallPatient, on
             {missingPatients.map((patient, index) => (
               <tr key={`missing-${index}`} className="hover:bg-gray-50 transition-colors bg-red-50/30">
                 <td className="px-4 py-4 text-sm text-gray-900">
-                  {patient.patient_name && patient.patient_name.toLowerCase() !== 'nan' && patient.patient_name !== '' ? (
-                    patient.patient_name
+                  {getFullName(patient) !== 'Unknown' ? (
+                    <button
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        if (onViewDetails) {
+                          onViewDetails(patient);
+                        }
+                      }}
+                      className="text-teal-600 hover:text-teal-800 hover:underline font-medium transition-colors cursor-pointer"
+                      title={`Click to view full details for ${getFullName(patient)}`}
+                    >
+                      {getFullName(patient)}
+                    </button>
                   ) : (
                     <span className="text-red-500 italic font-semibold" title="Patient name is missing">Missing</span>
                   )}
@@ -355,6 +400,17 @@ export const PatientTable = ({ patients, loading, onViewNotes, onCallPatient, on
                   )}
                 </td>
                 <td className="px-4 py-4 text-sm text-gray-700">{patient.aging_bucket}</td>
+                <td className="px-4 py-4 text-sm min-w-[200px] max-w-md">
+                  {patient.coverage_notes && patient.coverage_notes.trim() ? (
+                    <div className="group relative">
+                      <p className="text-xs text-gray-700 leading-relaxed whitespace-pre-wrap break-words max-h-32 overflow-y-auto">
+                        {patient.coverage_notes}
+                      </p>
+                    </div>
+                  ) : (
+                    <span className="text-gray-400 text-xs">-</span>
+                  )}
+                </td>
                 <td className="px-4 py-4 text-sm">
                   {patient.link_requested ? (
                     <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded-md text-xs font-medium">{patient.link_requested}</span>
@@ -401,7 +457,7 @@ export const PatientTable = ({ patients, loading, onViewNotes, onCallPatient, on
                       }
                     }}
                     className="px-2 py-1 bg-gray-100 text-gray-700 rounded-md text-xs font-semibold hover:bg-gray-200 transition-colors cursor-pointer"
-                    title={`Click to view call history for ${patient.patient_name || 'patient'} - Invoice ${patient.invoice_number || 'N/A'}`}
+                    title={`Click to view call history for ${getFullName(patient)} - Invoice ${patient.invoice_number || 'N/A'}`}
                   >
                     {patient.call_count || 0}
                   </button>
@@ -455,7 +511,7 @@ export const PatientTable = ({ patients, loading, onViewNotes, onCallPatient, on
                           <FiPhone size={14} />
                           Missing Invoice
                         </button>
-                      ) : !patient.patient_name || patient.patient_name.toLowerCase() === 'nan' ? (
+                      ) : !patient.patient_first_name || !patient.patient_last_name || patient.patient_first_name.toLowerCase() === 'nan' || patient.patient_last_name.toLowerCase() === 'nan' ? (
                         <button
                           disabled
                           className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-red-300 text-red-500 rounded-lg text-xs font-semibold cursor-not-allowed bg-red-50"

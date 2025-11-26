@@ -5,7 +5,8 @@ import { formatDateTime } from '../utils/timezone';
 
 interface CallHistoryModalProps {
   isOpen: boolean;
-  patientName: string;
+  patientFirstName: string;
+  patientLastName: string;
   phoneNumber: string;
   invoiceNumber: string;
   onClose: () => void;
@@ -13,7 +14,8 @@ interface CallHistoryModalProps {
 
 interface CallRecord {
   id: number;
-  patient_name: string;
+  patient_first_name: string;
+  patient_last_name: string;
   phone_number: string;
   invoice_number: string;
   called_at: string | null;
@@ -21,7 +23,15 @@ interface CallRecord {
   notes: string;
 }
 
-export const CallHistoryModal = ({ isOpen, patientName, phoneNumber, invoiceNumber, onClose }: CallHistoryModalProps) => {
+// Helper function to get full name
+const getFullName = (firstName: string, lastName: string): string => {
+  const first = firstName || '';
+  const last = lastName || '';
+  return `${first} ${last}`.trim() || 'Unknown';
+};
+
+export const CallHistoryModal = ({ isOpen, patientFirstName, patientLastName, phoneNumber, invoiceNumber, onClose }: CallHistoryModalProps) => {
+  const patientName = getFullName(patientFirstName, patientLastName);
   const [calls, setCalls] = useState<CallRecord[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);

@@ -21,7 +21,8 @@ interface DashboardStats {
   aging_distribution: Array<{ bucket: string; count: number; total_amount: number }>;
   status_distribution: Array<{ status: string; count: number }>;
   recent_calls_list: Array<{
-    patient_name: string;
+    patient_first_name: string;
+    patient_last_name: string;
     phone_number: string;
     invoice_number: string;
     called_at: string | null;
@@ -29,7 +30,8 @@ interface DashboardStats {
     notes: string;
   }>;
   paid_patients: Array<{
-    patient_name: string;
+    patient_first_name: string;
+    patient_last_name: string;
     invoice_number: string;
     phone_number: string;
     amount_paid: number;
@@ -293,7 +295,7 @@ export const Dashboard = () => {
                 <div key={index} className="flex items-start justify-between p-3 bg-gray-50 rounded-lg border border-gray-200">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1 flex-wrap">
-                      <p className="text-sm font-semibold text-gray-900 truncate">{call.patient_name}</p>
+                      <p className="text-sm font-semibold text-gray-900 truncate">{`${call.patient_first_name || ''} ${call.patient_last_name || ''}`.trim() || 'Unknown'}</p>
                       <span className={`px-2 py-0.5 rounded text-xs font-medium whitespace-nowrap ${
                         call.call_status === 'completed' 
                           ? 'bg-green-100 text-green-800' 
@@ -339,7 +341,7 @@ export const Dashboard = () => {
                   {stats.paid_patients.map((patient, index) => (
                     <div key={index} className="flex items-center justify-between p-4 bg-emerald-50 rounded-lg border border-emerald-200">
                       <div className="flex-1">
-                        <p className="text-sm font-semibold text-gray-900">{patient.patient_name}</p>
+                        <p className="text-sm font-semibold text-gray-900">{`${patient.patient_first_name || ''} ${patient.patient_last_name || ''}`.trim() || 'Unknown'}</p>
                         <p className="text-xs text-gray-600 mt-1">Invoice: {patient.invoice_number}</p>
                         {patient.phone_number && (
                           <p className="text-xs text-gray-600 mt-1">Phone: {patient.phone_number}</p>
@@ -375,7 +377,13 @@ export const Dashboard = () => {
                   {stats.paid_patients && stats.paid_patients.length > 0 && (
                     <p className="text-xs text-gray-500 mt-1">
                       Unique Patients: <span className="font-semibold text-gray-700">
-                        {new Set(stats.paid_patients.map(p => `${p.patient_name}-${p.invoice_number}`)).size}
+                        {(() => {
+                          const paidPatients = stats.paid_patients as DashboardStats['paid_patients'];
+                          return new Set(paidPatients.map((p) => {
+                            const fullName = `${p.patient_first_name || ''} ${p.patient_last_name || ''}`.trim() || 'Unknown';
+                            return `${fullName}-${p.invoice_number}`;
+                          })).size;
+                        })()}
                       </span>
                     </p>
                   )}

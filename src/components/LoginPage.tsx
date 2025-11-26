@@ -20,7 +20,7 @@ export const LoginPage = ({ onLogin }: LoginPageProps) => {
 
     try {
       const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-      const response = await fetch(`${API_URL}/login`, {
+      const response = await fetch(`${API_URL}/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

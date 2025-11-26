@@ -10,6 +10,7 @@ import {
   ConfirmModal,
   NotesModal,
   CallHistoryModal,
+  PatientDetails,
   LoginPage,
   SSOLogin,
   Dashboard,
@@ -42,8 +43,10 @@ function App() {
   const [showCallConfirmModal, setShowCallConfirmModal] = useState(false);
   const [showNotesModal, setShowNotesModal] = useState(false);
   const [showCallHistoryModal, setShowCallHistoryModal] = useState(false);
+  const [showPatientDetails, setShowPatientDetails] = useState(false);
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   const [patientToCall, setPatientToCall] = useState<Patient | null>(null);
+  const [selectedPatientId, setSelectedPatientId] = useState<number | null>(null);
   const [activeCalls, setActiveCalls] = useState<Map<string, number>>(new Map()); // phone_number -> timestamp
   const activeCallsRef = useRef<Map<string, number>>(new Map()); // Ref to track active calls for refresh logic
   const refreshIntervalRef = useRef<number | null>(null);
@@ -246,8 +249,10 @@ function App() {
         
         // If there are errors, also show them
         if (errorCount > 0) {
-          const errorDetails = response.errors?.slice(0, 3).map((e: { patient_name?: string; invoice_number?: string; error?: string }) => {
-            const patient = e.patient_name || 'Unknown';
+          const errorDetails = response.errors?.slice(0, 3).map((e: { patient_first_name?: string; patient_last_name?: string; invoice_number?: string; error?: string }) => {
+            const firstName = e.patient_first_name || '';
+            const lastName = e.patient_last_name || '';
+            const patient = `${firstName} ${lastName}`.trim() || 'Unknown';
             const invoice = e.invoice_number || '';
             const error = e.error || 'Unknown error';
             return `${patient} (${invoice}): ${error.substring(0, 50)}${error.length > 50 ? '...' : ''}`;
@@ -550,6 +555,15 @@ function App() {
     setShowCallHistoryModal(true);
   };
 
+  const handleViewDetails = (patient: Patient) => {
+    // Store patient info for details view
+    setSelectedPatient(patient);
+    if (patient.id) {
+      setSelectedPatientId(patient.id);
+    }
+    setShowPatientDetails(true);
+  };
+
   const handleCallPatient = (patient: Patient) => {
     const phone = patient.phone_number && patient.phone_number.toLowerCase() !== 'nan' ? patient.phone_number : '';
     const invoice = patient.invoice_number && patient.invoice_number.toLowerCase() !== 'nan' ? patient.invoice_number : '';
@@ -578,12 +592,21 @@ function App() {
     setShowCallConfirmModal(false);
     setPatientToCall(null);
 
+    // Helper function to get full name
+    const getFullName = (p: Patient): string => {
+      const first = p.patient_first_name || '';
+      const last = p.patient_last_name || '';
+      return `${first} ${last}`.trim() || 'Unknown';
+    };
+
     try {
-      showMessage('info', `Calling ${patient.patient_name} at ${patient.phone_number}...`);
+      const fullName = getFullName(patient);
+      showMessage('info', `Calling ${fullName} at ${patient.phone_number}...`);
       const response = await callPatient(
         patient.phone_number,
         patient.invoice_number,
-        patient.patient_name
+        patient.patient_first_name,
+        patient.patient_last_name
       );
       
       if (response.success) {
@@ -594,8 +617,8 @@ function App() {
         activeCallsRef.current = newActiveCalls; // Update ref
         localStorage.setItem('activeCalls', JSON.stringify(Array.from(newActiveCalls.entries())));
         
-        showMessage('success', response.message || `Call initiated to ${patient.patient_name}`);
-        showToast('success', `Call initiated to ${patient.patient_name}`);
+        showMessage('success', response.message || `Call initiated to ${fullName}`);
+        showToast('success', `Call initiated to ${fullName}`);
         
         // Refresh patient table to show updated call status immediately
         if (activeSection === 'upload') {
@@ -882,6 +905,7 @@ function App() {
                 onViewNotes={handleViewNotes}
                 onCallPatient={handleCallPatient}
                 onViewCallHistory={handleViewCallHistory}
+                onViewDetails={handleViewDetails}
                 activeCalls={activeCalls}
               />
             </div>
@@ -900,7 +924,7 @@ function App() {
         <ConfirmModal
           isOpen={showCallConfirmModal}
           title="Call Patient"
-          message={`Are you sure you want to call ${patientToCall?.patient_name || 'this patient'} at ${patientToCall?.phone_number || ''}?`}
+          message={`Are you sure you want to call ${patientToCall ? `${patientToCall.patient_first_name || ''} ${patientToCall.patient_last_name || ''}`.trim() || 'this patient' : 'this patient'} at ${patientToCall?.phone_number || ''}?`}
           onConfirm={confirmCallPatient}
           onCancel={() => {
             setShowCallConfirmModal(false);
@@ -910,18 +934,35 @@ function App() {
 
         <NotesModal
           isOpen={showNotesModal}
-          patientName={selectedPatient?.patient_name || ''}
+          patientFirstName={selectedPatient?.patient_first_name || ''}
+          patientLastName={selectedPatient?.patient_last_name || ''}
           notes={selectedPatient?.notes || ''}
           onClose={() => setShowNotesModal(false)}
         />
 
         <CallHistoryModal
           isOpen={showCallHistoryModal}
-          patientName={selectedPatient?.patient_name || ''}
+          patientFirstName={selectedPatient?.patient_first_name || ''}
+          patientLastName={selectedPatient?.patient_last_name || ''}
           phoneNumber={selectedPatient?.phone_number || ''}
           invoiceNumber={selectedPatient?.invoice_number || ''}
           onClose={() => setShowCallHistoryModal(false)}
         />
+
+        {showPatientDetails && selectedPatient && (
+          <PatientDetails
+            invoiceId={selectedPatient.id}
+            phoneNumber={selectedPatient.phone_number}
+            invoiceNumber={selectedPatient.invoice_number}
+            patientFirstName={selectedPatient.patient_first_name}
+            patientLastName={selectedPatient.patient_last_name}
+            isOpen={showPatientDetails}
+            onClose={() => {
+              setShowPatientDetails(false);
+              setSelectedPatientId(null);
+            }}
+          />
+        )}
       </div>
     </div>
   );

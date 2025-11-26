@@ -2,12 +2,21 @@ import { FiX, FiFileText } from 'react-icons/fi';
 
 interface NotesModalProps {
   isOpen: boolean;
-  patientName: string;
+  patientFirstName: string;
+  patientLastName: string;
   notes: string;
   onClose: () => void;
 }
 
-export const NotesModal = ({ isOpen, patientName, notes, onClose }: NotesModalProps) => {
+// Helper function to get full name
+const getFullName = (firstName: string, lastName: string): string => {
+  const first = firstName || '';
+  const last = lastName || '';
+  return `${first} ${last}`.trim() || 'Unknown';
+};
+
+export const NotesModal = ({ isOpen, patientFirstName, patientLastName, notes, onClose }: NotesModalProps) => {
+  const patientName = getFullName(patientFirstName, patientLastName);
   if (!isOpen) return null;
 
   return (

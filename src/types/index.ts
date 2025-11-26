@@ -8,8 +8,10 @@ export interface User {
 }
 
 export interface Patient {
+  id?: number; // Invoice ID
   phone_number: string;
-  patient_name: string;
+  patient_first_name: string;
+  patient_last_name: string;
   invoice_number: string;
   price: string;
   outstanding_amount: string;
@@ -25,6 +27,26 @@ export interface Patient {
   payment_status?: string; // pending, completed, failed, refunded
   amount_paid?: string; // Amount paid by patient
   recent_call_notes?: string; // Most recent call notes from call history
+  // Additional fields for detailed view
+  patient_dob?: string;
+  patient_account_number?: string;
+  provider_name?: string;
+  appointment_date_time?: string;
+  insurance?: string;
+  network_status?: string;
+  eligibility_status?: string;
+  family_deductible?: string;
+  family_deductible_remaining?: string;
+  individual_oop_max?: string;
+  individual_oop_remaining?: string;
+  copay?: string;
+  coinsurance?: string;
+  coverage_notes?: string;
+  coverage_effective_from?: string;
+  coverage_effective_to?: string;
+  comments?: string;
+  amount_paid_stripe?: string;
+  amount_paid_other?: string;
 }
 
 export interface CSVFile {
@@ -41,7 +63,8 @@ export interface FileWithDate {
 }
 
 export interface CalendarCall {
-  patient_name: string;
+  patient_first_name: string;
+  patient_last_name: string;
   invoice_number: string;
   called_at: string;
   call_status: string;
@@ -56,7 +79,8 @@ export interface BatchCallResult {
     successful: number;
     failed: number;
     calls: Array<{
-      patient_name: string;
+      patient_first_name: string;
+      patient_last_name: string;
       phone_number: string;
       outstanding_amount: string;
       timestamp: string;
