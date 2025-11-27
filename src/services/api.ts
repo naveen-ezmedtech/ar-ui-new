@@ -53,7 +53,7 @@ export const getPatientDetails = async (
   patientFirstName?: string,
   patientLastName?: string
 ): Promise<{ success: boolean; patient: Patient }> => {
-  const params: any = {};
+  const params: Record<string, string | number | undefined> = {};
   if (invoiceId) {
     params.invoice_id = invoiceId;
   }
@@ -317,6 +317,57 @@ export const updateUser = async (userId: number, updates: {
   created_at: string;
 } }> => {
   const response = await api.put(`/users/${userId}/`, updates);
+  return response.data;
+};
+
+// Get webhook details (same as client initiation webhook) for all records by phone number
+export const getWebhookDetailsByPhone = async (phoneNumber: string): Promise<{
+  success: boolean;
+  phone_number: string;
+  total_records: number;
+  records: Array<{
+    invoice_id: number;
+    conversation_initiation_client_data: {
+      dynamic_variables: {
+        patient_name: string;
+        patient_first_name: string;
+        patient_last_name: string;
+        patient_dob: string;
+        patient_account_number: string;
+        phone_number: string;
+        invoice_number: string;
+        provider_name: string;
+        appointment_date_time: string;
+        price: string;
+        outstanding_amount: string;
+        aging_bucket: string;
+        insurance: string;
+        network_status: string;
+        eligibility_status: string;
+        copay: string;
+        coinsurance: string;
+        family_deductible: string;
+        family_deductible_remaining: string;
+        individual_oop_max: string;
+        individual_oop_remaining: string;
+        coverage_notes: string;
+        notes: string;
+        comments: string;
+        estimated_payment_date: string;
+        payment_link_sent: string;
+      };
+    };
+    clinic: string;
+    call_status: string;
+    call_count: number;
+    last_called_at: string | null;
+    payment_status: string;
+    amount_paid: string;
+    created_at: string | null;
+    updated_at: string | null;
+  }>;
+}> => {
+  const response = await api.get(`/patients/webhook-details/${phoneNumber}`);
   return response.data;
 };
 
