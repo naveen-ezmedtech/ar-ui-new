@@ -4,10 +4,11 @@ import api from '../services/api';
 
 interface DownloadButtonProps {
   filename: string;
+  uploadId?: number | null;  // Optional upload ID for precise filtering
   disabled: boolean;
 }
 
-export const DownloadButton = ({ filename, disabled }: DownloadButtonProps) => {
+export const DownloadButton = ({ filename, uploadId, disabled }: DownloadButtonProps) => {
   const [downloading, setDownloading] = useState(false);
 
   const handleDownload = async () => {
@@ -16,8 +17,16 @@ export const DownloadButton = ({ filename, disabled }: DownloadButtonProps) => {
     try {
       setDownloading(true);
       
+      // Build query parameters
+      const params: { upload_id?: number } = {};
+      if (uploadId) {
+        params.upload_id = uploadId;
+      }
+      
       // Use authenticated axios request to download the file
+      // Use upload_id if provided for precise filtering, otherwise use filename
       const response = await api.get(`/download/${filename}`, {
+        params,
         responseType: 'blob', // Important: tell axios to expect binary data
       });
       

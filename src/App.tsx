@@ -938,6 +938,7 @@ function App() {
                       return selectedUpload?.filename || currentFile;
                     })()
                   : currentFile}
+                uploadId={selectedUploadId || undefined}
                 disabled={patients.length === 0}
               />
                   </div>
