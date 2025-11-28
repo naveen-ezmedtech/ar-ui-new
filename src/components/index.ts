@@ -2,6 +2,7 @@ export { Header } from './Header';
 export { ProfileDropdown } from './ProfileDropdown';
 export { MessageAlert } from './MessageAlert';
 export { FileUpload } from './FileUpload';
+export { FileSelectorDropdown } from './FileSelectorDropdown';
 export { BatchCallButton } from './BatchCallButton';
 export { DownloadButton } from './DownloadButton';
 export { PatientTable } from './PatientTable';

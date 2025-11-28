@@ -1,5 +1,6 @@
 import axios from 'axios';
 import type { Patient, BatchCallResult } from '../types';
+import { formatDateTime } from '../utils/timezone';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
@@ -82,37 +83,75 @@ export const getAllPatients = async (sourceFilename?: string): Promise<{ success
   return response.data;
 };
 
-// Get list of available CSV files
-export const getAvailableFiles = async (): Promise<{ success: boolean; files: string[]; count: number }> => {
-  // Use /files/list and extract unique filenames
-  interface FileUploadItem {
-    id: number;
-    filename: string;
-    uploaded_at: string | null;
-    patient_count: number;
-    new_count: number;
-    updated_count: number;
-    error_count: number;
-    created_at: string | null;
-  }
+// File upload item interface
+export interface FileUploadItem {
+  id: number;
+  filename: string;
+  uploaded_at: string | null;
+  patient_count: number;
+  new_count: number;
+  updated_count: number;
+  error_count: number;
+  created_at: string | null;
+}
+
+// Get list of available CSV files - returns all uploads with formatted display names
+export const getAvailableFiles = async (): Promise<{ success: boolean; files: Array<{ id: number; filename: string; displayName: string; uploaded_at: string | null; patient_count: number }>; count: number }> => {
+  // Use /files/list and return all uploads with formatted display names
   const response = await api.get<{ success: boolean; history: FileUploadItem[]; count: number }>('/files/list');
   const history = response.data.history || [];
-  const uniqueFiles: string[] = Array.from(new Set(history.map((item: FileUploadItem) => item.filename).filter((f): f is string => Boolean(f))));
+  
+  // Format display name with date and time in system timezone
+  const formatDisplayName = (item: FileUploadItem): string => {
+    const filename = item.filename || 'Unknown';
+    if (item.uploaded_at) {
+      // Use formatDateTime utility which handles UTC to local timezone conversion
+      // and formats according to system timezone settings
+      const formattedDateTime = formatDateTime(item.uploaded_at, {
+        includeDate: true,
+        includeTime: true,
+        hour12: true
+      });
+      
+      if (formattedDateTime && formattedDateTime !== 'N/A') {
+        return `${filename} - ${formattedDateTime}`;
+      }
+    }
+    return filename;
+  };
+  
+  // Return all uploads with formatted display names, sorted by most recent first
+  const files = history
+    .map((item: FileUploadItem) => ({
+      id: item.id,
+      filename: item.filename,
+      displayName: formatDisplayName(item),
+      uploaded_at: item.uploaded_at,
+      patient_count: item.patient_count
+    }))
+    .sort((a, b) => {
+      const dateA = a.uploaded_at ? new Date(a.uploaded_at).getTime() : 0;
+      const dateB = b.uploaded_at ? new Date(b.uploaded_at).getTime() : 0;
+      return dateB - dateA; // Most recent first
+    });
+  
   return {
     success: response.data.success,
-    files: uniqueFiles,
-    count: uniqueFiles.length
+    files,
+    count: files.length
   };
 };
 
-// Trigger batch calls (csvFilename is optional, now uses database)
+// Trigger batch calls (uploadId or csvFilename is optional, now uses database)
 export const triggerBatchCall = async (
   csvFilename?: string,
   minOutstanding: number = 0.01,
-  maxCalls?: number
+  maxCalls?: number,
+  uploadId?: number
 ): Promise<BatchCallResult> => {
   const response = await api.post('/call-batch', {
     csv_filename: csvFilename,  // Optional, kept for backward compatibility
+    upload_id: uploadId,  // Filter by specific upload ID (takes precedence over csv_filename)
     min_outstanding: minOutstanding,
     max_calls: maxCalls,
   });
