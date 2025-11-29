@@ -1,5 +1,5 @@
 import { FiX, FiFileText, FiClock } from 'react-icons/fi';
-import { parseNotes, groupNotesByDateTime, formatTimestamp } from '../utils/notesParser';
+import { parseNotes, groupNotesByDateTime } from '../utils/notesParser';
 
 interface NotesModalProps {
   isOpen: boolean;
