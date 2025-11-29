@@ -123,17 +123,17 @@ export const getAvailableFiles = async (): Promise<{ success: boolean; files: Ar
   // Return all uploads with formatted display names, sorted by most recent first
   const files = history
     .map((item: FileUploadItem) => ({
-      id: item.id,
-      filename: item.filename,
-      displayName: formatDisplayName(item),
-      uploaded_at: item.uploaded_at,
+    id: item.id,
+    filename: item.filename,
+    displayName: formatDisplayName(item),
+    uploaded_at: item.uploaded_at,
       patient_count: item.patient_count
     }))
     .sort((a, b) => {
       const dateA = a.uploaded_at ? new Date(a.uploaded_at).getTime() : 0;
       const dateB = b.uploaded_at ? new Date(b.uploaded_at).getTime() : 0;
-      return dateB - dateA; // Most recent first
-    });
+    return dateB - dateA; // Most recent first
+  });
   
   return {
     success: response.data.success,

@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef } from 'react';
 import { getAllPatients, getPatientsByUploadId } from '../services/api';
 import type { Patient } from '../types';
 

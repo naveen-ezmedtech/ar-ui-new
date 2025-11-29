@@ -100,7 +100,7 @@ export const useAutoRefresh = (options: UseAutoRefreshOptions) => {
               await loadPatientData(currentUploadId, true);
             }
           }
-        } else {
+      } else {
           const currentUploadId = getSelectedUploadId();
           await loadPatientData(currentUploadId, true);
           if (refreshIntervalRef.current) {

@@ -5,6 +5,7 @@ interface FileOption {
   id: number;
   filename: string;
   displayName: string;
+  uploaded_at: string | null;
   patient_count: number;
 }
 

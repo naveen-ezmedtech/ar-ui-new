@@ -211,7 +211,7 @@ function App() {
       setSelectedFile('');
       setCurrentFile('database');
       await loadPatientData(null, false);
-    } else {
+      } else {
       const selectedUpload = availableFiles.find(f => f.id === uploadId);
       setSelectedUploadId(uploadId);
       setSelectedUploadIdRef(uploadId);
@@ -498,8 +498,8 @@ function App() {
           <UploadSection
             availableFiles={availableFiles}
             selectedUploadId={selectedUploadId}
-            patients={patients}
-            loading={loading}
+                patients={patients} 
+                loading={loading} 
             uploadLoading={uploadLoading}
             callingInProgress={callingInProgress}
             activeCalls={activeCalls}
@@ -507,11 +507,11 @@ function App() {
             onFileUpload={handleFileUpload}
             onFileSelect={handleFileSelect}
             onBatchCall={handleBatchCall}
-            onViewNotes={handleViewNotes}
-            onCallPatient={handleCallPatient}
-            onViewCallHistory={handleViewCallHistory}
-            onViewDetails={handleViewDetails}
-          />
+                onViewNotes={handleViewNotes}
+                onCallPatient={handleCallPatient}
+                onViewCallHistory={handleViewCallHistory}
+                onViewDetails={handleViewDetails}
+              />
         )}
 
         <ConfirmModal
