@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { getFileUploadHistory, getPatientsByUploadId, callPatient } from '../services/api';
+import { getFileUploadHistory, getPatientsByUploadId, callPatient, getCallStatus } from '../services/api';
 import type { Patient } from '../types';
 import { formatDateTime } from '../utils/timezone';
 import { PatientTable } from './PatientTable';
@@ -55,6 +55,31 @@ export const InvoiceList = ({ onFileSelect }: InvoiceListProps) => {
   useEffect(() => {
     loadUploads();
   }, []);
+
+  // Clean up activeCalls when patient data changes - remove entries for completed/failed calls
+  useEffect(() => {
+    setActiveCalls(prev => {
+      if (prev.size === 0 || patients.length === 0) {
+        return prev;
+      }
+      
+      const newMap = new Map(prev);
+      let hasChanges = false;
+      
+      // Remove entries for patients whose call_status is completed or failed
+      patients.forEach(patient => {
+        if (patient.call_status === 'completed' || patient.call_status === 'failed') {
+          const callKey = getPatientCallKey(patient);
+          if (newMap.has(callKey)) {
+            newMap.delete(callKey);
+            hasChanges = true;
+          }
+        }
+      });
+      
+      return hasChanges ? newMap : prev;
+    });
+  }, [patients]);
 
   const handleOpenUpload = async (uploadId: number) => {
     setSelectedUploadId(uploadId);
@@ -188,6 +213,77 @@ export const InvoiceList = ({ onFileSelect }: InvoiceListProps) => {
           const response = await getPatientsByUploadId(selectedUploadId);
           setPatients(response.patients || []);
         }
+        
+        // Poll for call status and remove from activeCalls when complete
+        let refreshCount = 0;
+        const maxRefreshes = 60; // Increased to allow more time for calls to complete
+        const singleCallRefreshInterval = setInterval(async () => {
+          if (refreshCount < maxRefreshes) {
+            try {
+              // Always reload patients to get latest call status and notes
+              if (selectedUploadId) {
+                const response = await getPatientsByUploadId(selectedUploadId);
+                setPatients(response.patients || []);
+              }
+              
+              // Also check call status API for faster detection
+              const statusResponse = await getCallStatus([phoneNumber]);
+              
+              if (statusResponse.success && statusResponse.statuses.length > 0) {
+                const status = statusResponse.statuses[0];
+                const callStatus = status.recent_call_status || status.call_status;
+                
+                if (callStatus === 'completed' || callStatus === 'failed') {
+                  // Remove from activeCalls when call completes or fails
+                  setActiveCalls(prev => {
+                    const newMap = new Map(prev);
+                    newMap.delete(callKey);
+                    return newMap;
+                  });
+                  
+                  // Final reload to ensure UI is updated
+                  if (selectedUploadId) {
+                    const response = await getPatientsByUploadId(selectedUploadId);
+                    setPatients(response.patients || []);
+                  }
+                  
+                  clearInterval(singleCallRefreshInterval);
+                  return;
+                }
+              }
+            } catch (error) {
+              console.error('Failed to check call status:', error);
+              // Still try to reload patients on error
+              try {
+                if (selectedUploadId) {
+                  const response = await getPatientsByUploadId(selectedUploadId);
+                  setPatients(response.patients || []);
+                }
+              } catch (refreshError) {
+                console.error('Failed to refresh patient data:', refreshError);
+              }
+            }
+            
+            refreshCount++;
+          } else {
+            // Clean up activeCalls when max refreshes reached
+            setActiveCalls(prev => {
+              const newMap = new Map(prev);
+              newMap.delete(callKey);
+              return newMap;
+            });
+            // Final reload before stopping
+            try {
+              if (selectedUploadId) {
+                const response = await getPatientsByUploadId(selectedUploadId);
+                setPatients(response.patients || []);
+              }
+            } catch (error) {
+              console.error('Failed to refresh patient data:', error);
+            }
+            clearInterval(singleCallRefreshInterval);
+          }
+        }, 3000); // Refresh every 3 seconds
       } else {
         showMessage('error', result.message || 'Failed to initiate call');
         // Remove from active calls on failure
@@ -210,15 +306,6 @@ export const InvoiceList = ({ onFileSelect }: InvoiceListProps) => {
     } finally {
       setShowCallConfirmModal(false);
       setPatientToCall(null);
-      
-      // Remove from active calls after 5 minutes
-      setTimeout(() => {
-        setActiveCalls(prev => {
-          const newMap = new Map(prev);
-          newMap.delete(callKey);
-          return newMap;
-        });
-      }, 5 * 60 * 1000);
     }
   };
 

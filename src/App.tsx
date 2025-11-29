@@ -168,6 +168,35 @@ function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [checkingAuth, isAuthenticated, activeSection]);
 
+  // Clean up activeCalls when patient data changes - remove entries for completed/failed calls
+  useEffect(() => {
+    setActiveCalls(prev => {
+      if (prev.size === 0 || patients.length === 0) {
+        return prev;
+      }
+      
+      const newMap = new Map(prev);
+      let hasChanges = false;
+      
+      // Remove entries for patients whose call_status is completed or failed
+      patients.forEach(patient => {
+        if (patient.call_status === 'completed' || patient.call_status === 'failed') {
+          const callKey = getPatientCallKey(patient);
+          if (newMap.has(callKey)) {
+            newMap.delete(callKey);
+            hasChanges = true;
+          }
+        }
+      });
+      
+      if (hasChanges) {
+        activeCallsRef.current = newMap;
+        return newMap;
+      }
+      return prev;
+    });
+  }, [patients]);
+
   // Handle login
   const handleLogin = (_token: string, userData: User) => {
     setIsSSOMode(false);
@@ -376,10 +405,15 @@ function App() {
           await loadPatientData(currentUploadId, true);
           
           let refreshCount = 0;
-          const maxRefreshes = 30;
+          const maxRefreshes = 60; // Increased to allow more time for calls to complete
           const singleCallRefreshInterval = setInterval(async () => {
             if (activeSection === 'upload' && refreshCount < maxRefreshes) {
               try {
+                // Always refresh patient data to get latest call status and notes
+                const currentUploadId = getSelectedUploadId();
+                await loadPatientData(currentUploadId, true);
+                
+                // Also check call status API for faster detection
                 const statusResponse = await getCallStatus([patient.phone_number]);
                 
                 if (statusResponse.success && statusResponse.statuses.length > 0) {
@@ -387,30 +421,50 @@ function App() {
                   const callStatus = status.recent_call_status || status.call_status;
                   
                   if (callStatus === 'completed' || callStatus === 'failed') {
-                    const currentUploadId = getSelectedUploadId();
+                    // Remove from activeCalls when call completes or fails
+                    setActiveCalls(prev => {
+                      const newMap = new Map(prev);
+                      newMap.delete(callKey);
+                      return newMap;
+                    });
+                    activeCallsRef.current = new Map(Array.from(activeCallsRef.current).filter(([key]) => key !== callKey));
+                    
+                    // Final refresh to ensure UI is updated
                     await loadPatientData(currentUploadId, true);
                     clearInterval(singleCallRefreshInterval);
                     return;
                   }
                 }
-                
-                if (refreshCount % 5 === 0) {
-                  const currentUploadId = getSelectedUploadId();
-                  await loadPatientData(currentUploadId, true);
-                }
               } catch (error) {
                 console.error('Failed to check call status:', error);
-                if (refreshCount % 3 === 0) {
+                // Still try to refresh patient data on error
+                try {
                   const currentUploadId = getSelectedUploadId();
                   await loadPatientData(currentUploadId, true);
+                } catch (refreshError) {
+                  console.error('Failed to refresh patient data:', refreshError);
                 }
               }
               
               refreshCount++;
             } else {
+              // Clean up activeCalls when max refreshes reached
+              setActiveCalls(prev => {
+                const newMap = new Map(prev);
+                newMap.delete(callKey);
+                return newMap;
+              });
+              activeCallsRef.current = new Map(Array.from(activeCallsRef.current).filter(([key]) => key !== callKey));
+              // Final refresh before stopping
+              try {
+                const currentUploadId = getSelectedUploadId();
+                await loadPatientData(currentUploadId, true);
+              } catch (error) {
+                console.error('Failed to refresh patient data:', error);
+              }
               clearInterval(singleCallRefreshInterval);
             }
-          }, 2000);
+          }, 3000); // Refresh every 3 seconds
         }
       } else {
         showMessage('error', response.message || 'Failed to initiate call');

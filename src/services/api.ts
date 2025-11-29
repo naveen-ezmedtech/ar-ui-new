@@ -9,6 +9,7 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  timeout: 120000, // 120 seconds timeout for long-running requests (e.g., /patients)
 });
 
 // Request interceptor to add authentication token
@@ -21,6 +22,36 @@ api.interceptors.request.use(
     return config;
   },
   (error) => {
+    return Promise.reject(error);
+  }
+);
+
+// Response interceptor with retry logic for network errors
+api.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const originalRequest = error.config;
+
+    // Retry logic for network errors or timeouts
+    if (
+      (error.code === 'ERR_NETWORK' || 
+       error.code === 'ECONNABORTED' || 
+       error.message?.includes('timeout') ||
+       error.message?.includes('Network Error')) &&
+      !originalRequest._retry &&
+      originalRequest._retryCount < 2 // Max 2 retries
+    ) {
+      originalRequest._retry = true;
+      originalRequest._retryCount = (originalRequest._retryCount || 0) + 1;
+
+      // Wait before retrying (exponential backoff)
+      const delay = Math.pow(2, originalRequest._retryCount) * 1000; // 2s, 4s
+      await new Promise(resolve => setTimeout(resolve, delay));
+
+      // Retry the request
+      return api(originalRequest);
+    }
+
     return Promise.reject(error);
   }
 );

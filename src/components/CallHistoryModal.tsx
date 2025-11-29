@@ -168,10 +168,7 @@ export const CallHistoryModal = ({ isOpen, patientFirstName, patientLastName, ph
         </div>
         
         <div className="p-6 border-t border-gray-200 bg-gray-50">
-          <div className="flex items-center justify-between">
-            <p className="text-sm text-gray-600">
-              Total Calls: <span className="font-semibold text-gray-900">{calls.length}</span>
-            </p>
+          <div className="flex items-center justify-end">
             <button
               onClick={onClose}
               className="px-4 py-2 bg-gray-900 text-white rounded-xl font-semibold hover:bg-gray-800 transition-colors"

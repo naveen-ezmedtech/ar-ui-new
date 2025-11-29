@@ -86,7 +86,14 @@ export const UploadSection = ({
                   </p>
                 </div>
                 <span className="px-3 py-1 bg-gray-600 text-white text-xs font-semibold rounded-full">
-                  {patients.length} patients
+                  {loading ? (
+                    <span className="flex items-center gap-1.5">
+                      <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      Loading...
+                    </span>
+                  ) : (
+                    `${patients.length} patients`
+                  )}
                 </span>
               </div>
             </div>
