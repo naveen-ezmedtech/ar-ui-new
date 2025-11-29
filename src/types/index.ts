@@ -75,13 +75,18 @@ export interface BatchCallResult {
   success: boolean;
   message: string;
   results: {
+    total_patients?: number | null; // Total patients in selection (before filtering)
+    eligible_count?: number; // Number of patients eligible for calling
+    filtered_out_count?: number | null; // Number of patients filtered out
     total_attempted: number;
     successful: number;
     failed: number;
     calls: Array<{
       patient_first_name: string;
       patient_last_name: string;
+      patient_dob?: string;
       phone_number: string;
+      invoice_number: string;
       outstanding_amount: string;
       timestamp: string;
       success: boolean;

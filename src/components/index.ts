@@ -16,4 +16,6 @@ export { Dashboard } from './Dashboard';
 export { InvoiceList } from './InvoiceList';
 export { CalendarView } from './CalendarView';
 export { UserManagement } from './UserManagement';
+export { UploadSection } from './UploadSection';
+export { NavigationTabs } from './NavigationTabs';
 export { ToastContainer, useToast } from './Toast';

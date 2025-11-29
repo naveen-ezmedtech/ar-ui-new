@@ -3,11 +3,8 @@ import './App.css';
 import {
   Header,
   MessageAlert,
-  FileUpload,
-  FileSelectorDropdown,
-  BatchCallButton,
-  DownloadButton,
-  PatientTable,
+  UploadSection,
+  NavigationTabs,
   ConfirmModal,
   NotesModal,
   CallHistoryModal,
@@ -20,7 +17,11 @@ import {
   ToastContainer,
   useToast
 } from './components';
-import { uploadCSV, getAllPatients, getAvailableFiles, triggerBatchCall, callPatient, getCallStatus, getPatientsByUploadId } from './services/api';
+import { triggerBatchCall, callPatient, getCallStatus } from './services/api';
+import { usePatientData } from './hooks/usePatientData';
+import { useFileUpload } from './hooks/useFileUpload';
+import { useAutoRefresh } from './hooks/useAutoRefresh';
+import { getPatientCallKey, getPatientFullName } from './utils/patientUtils';
 import type { Patient, Message, User } from './types';
 
 function App() {
@@ -30,15 +31,11 @@ function App() {
   const [checkingAuth, setCheckingAuth] = useState(true);
   const [isSSOMode, setIsSSOMode] = useState(false);
 
-  // Existing state
+  // UI state
   const [currentFile, setCurrentFile] = useState<string>('');
-  const [selectedFile, setSelectedFile] = useState<string>('');  // Selected file for filtering (kept for backward compatibility)
-  const [selectedUploadId, setSelectedUploadId] = useState<number | null>(null);  // Selected upload ID for filtering
-  const [availableFiles, setAvailableFiles] = useState<Array<{ id: number; filename: string; displayName: string; uploaded_at: string | null; patient_count: number }>>([]);
-  const [patients, setPatients] = useState<Patient[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [activeSection, setActiveSection] = useState<'dashboard' | 'upload' | 'invoice-list' | 'users'>('dashboard');  // Dashboard by default
-  const [uploadLoading, setUploadLoading] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<string>('');
+  const [selectedUploadId, setSelectedUploadId] = useState<number | null>(null);
+  const [activeSection, setActiveSection] = useState<'dashboard' | 'upload' | 'invoice-list' | 'users'>('dashboard');
   const [message, setMessage] = useState<Message | null>(null);
   const [callingInProgress, setCallingInProgress] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -48,35 +45,91 @@ function App() {
   const [showPatientDetails, setShowPatientDetails] = useState(false);
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   const [patientToCall, setPatientToCall] = useState<Patient | null>(null);
-  const [activeCalls, setActiveCalls] = useState<Map<string, number>>(new Map()); // unique_key -> timestamp
-  const activeCallsRef = useRef<Map<string, number>>(new Map()); // Ref to track active calls for refresh logic
+  const [activeCalls, setActiveCalls] = useState<Map<string, number>>(new Map());
+  const activeCallsRef = useRef<Map<string, number>>(new Map());
 
-  // Helper function to create unique key for each patient record
-  const getPatientCallKey = (patient: Patient): string => {
-    const phone = patient.phone_number || '';
-    const invoice = patient.invoice_number || '';
-    const firstName = patient.patient_first_name || '';
-    const lastName = patient.patient_last_name || '';
-    return `${phone}|${invoice}|${firstName}|${lastName}`;
-  };
-  const refreshIntervalRef = useRef<number | null>(null);
-  const patientsRef = useRef<Patient[]>([]); // Ref to track patients for refresh logic
+  // Custom hooks
+  const {
+    patients,
+    loading,
+    selectedUploadIdRef,
+    loadPatientData,
+    setSelectedUploadId: setSelectedUploadIdRef,
+    getSelectedUploadId,
+  } = usePatientData();
+
+  const {
+    uploadLoading,
+    availableFiles,
+    handleFileUpload: handleFileUploadBase,
+    loadAvailableFiles,
+  } = useFileUpload({
+    showMessage: (type, text) => showMessage(type, text),
+    onUploadSuccess: async (filename) => {
+      setCurrentFile(filename || 'database');
+      setSelectedFile(filename);
+      localStorage.setItem('currentFile', filename || 'database');
+      await loadAvailableFiles();
+      
+      if (filename) {
+        const recentUpload = availableFiles
+          .filter(f => f.filename === filename)
+          .sort((a, b) => {
+            const dateA = a.uploaded_at ? new Date(a.uploaded_at).getTime() : 0;
+            const dateB = b.uploaded_at ? new Date(b.uploaded_at).getTime() : 0;
+            return dateB - dateA;
+          })[0];
+        
+        if (recentUpload) {
+          setSelectedUploadId(recentUpload.id);
+          setSelectedUploadIdRef(recentUpload.id);
+          await loadPatientData(recentUpload.id, false);
+        } else {
+          setSelectedUploadId(null);
+          setSelectedUploadIdRef(null);
+          await loadPatientData(null, false);
+        }
+      } else {
+        setSelectedUploadId(null);
+        setSelectedUploadIdRef(null);
+        await loadPatientData(null, false);
+      }
+      
+      const refreshDashboard = (window as { refreshDashboard?: () => void }).refreshDashboard;
+      if (refreshDashboard) {
+        refreshDashboard();
+      }
+    },
+  });
+
+  const { startSmartAutoRefresh, stopAutoRefresh } = useAutoRefresh({
+    activeSection,
+    callingInProgress,
+    setCallingInProgress,
+    setActiveCalls,
+    activeCallsRef,
+    loadPatientData,
+    getSelectedUploadId,
+  });
+
   const { toasts, showToast, removeToast } = useToast();
+
+  // Keep ref in sync with state
+  useEffect(() => {
+    selectedUploadIdRef.current = selectedUploadId;
+  }, [selectedUploadId, selectedUploadIdRef]);
 
   // Check if user is already logged in on mount
   useEffect(() => {
-    // Check URL for SSO token parameter
     const urlParams = new URLSearchParams(window.location.search);
     const ssoToken = urlParams.get('token');
     
     if (ssoToken) {
-      // SSO login mode
       setIsSSOMode(true);
       setCheckingAuth(false);
       return;
     }
     
-    // Check for existing session
     const token = localStorage.getItem('access_token');
     const storedUser = localStorage.getItem('user');
     
@@ -85,56 +138,39 @@ function App() {
       setUser(JSON.parse(storedUser));
     }
     
-    // Restore current file from localStorage (but not call status - fetch fresh from server)
     const storedCurrentFile = localStorage.getItem('currentFile');
     if (storedCurrentFile) {
       setCurrentFile(storedCurrentFile);
     }
     
-    // Restore active section from localStorage to preserve tab on reload
     const storedActiveSection = localStorage.getItem('activeSection');
     if (storedActiveSection && ['dashboard', 'upload', 'invoice-list', 'users'].includes(storedActiveSection)) {
       setActiveSection(storedActiveSection as 'dashboard' | 'upload' | 'invoice-list' | 'users');
     }
     
-    // Don't restore callingInProgress from localStorage - always fetch fresh status from server
-    // Clear any stale calling status
+    selectedUploadIdRef.current = null;
     localStorage.removeItem('callingInProgress');
-    
-    // Don't restore active calls from localStorage - they may be stale
-    // Clear any stale active calls
     localStorage.removeItem('activeCalls');
     
     setCheckingAuth(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Load patient data and available files when app loads (from database)
+  // Load patient data and available files when app loads
   useEffect(() => {
     if (!checkingAuth && isAuthenticated) {
-      loadAvailableFiles();  // Load list of available files
-      // Only load patient data if we're in upload section
+      loadAvailableFiles();
       if (activeSection === 'upload') {
-        // Use selectedUploadId if available, otherwise load all patients
-        loadPatientData(selectedUploadId, false);
+        const currentUploadId = getSelectedUploadId();
+        loadPatientData(currentUploadId, false);
       }
-      // Don't resume auto-refresh on page load - always fetch fresh data from server
-      // The server will have the actual call status, not stale localStorage state
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [checkingAuth, isAuthenticated, activeSection]);
 
-  useEffect(() => {
-    return () => {
-      if (refreshIntervalRef.current) {
-        clearInterval(refreshIntervalRef.current);
-      }
-    };
-  }, []);
-
   // Handle login
   const handleLogin = (_token: string, userData: User) => {
     setIsSSOMode(false);
-    // Clear URL params if coming from SSO
     if (window.location.search) {
       window.history.replaceState({}, document.title, window.location.pathname);
     }
@@ -144,7 +180,7 @@ function App() {
 
   // Handle logout
   const handleLogout = () => {
-    stopAutoRefresh(); // Stop any running auto-refresh
+    stopAutoRefresh();
     localStorage.removeItem('access_token');
     localStorage.removeItem('user');
     localStorage.removeItem('currentFile');
@@ -153,177 +189,39 @@ function App() {
     setIsAuthenticated(false);
     setUser(null);
     setCurrentFile('');
-    setPatients([]);
   };
 
-  const loadPatientData = async (uploadId: number | null = null, silent: boolean = false) => {
-    if (!silent) {
-      setLoading(true);
-    }
-    try {
-      let response;
-      if (uploadId) {
-        // Filter by specific upload ID
-        response = await getPatientsByUploadId(uploadId);
-      } else {
-        // Get all patients from all uploads
-        response = await getAllPatients();
-      }
-      const updatedPatients = response.patients || [];
-      setPatients(updatedPatients);
-      patientsRef.current = updatedPatients; // Update ref for refresh logic
-    } catch (error) {
-      console.error('Failed to load patient data:', error);
-      if (!silent) {
-        showMessage('error', 'Failed to load patient data');
-      }
-      setPatients([]);  // Clear patients on error
-      patientsRef.current = [];
-    } finally {
-      if (!silent) {
-        setLoading(false);
-      }
-    }
-  };
-
-  const loadAvailableFiles = async () => {
-    try {
-      const response = await getAvailableFiles();
-      setAvailableFiles(response.files || []);
-    } catch (error) {
-      console.error('Failed to load available files:', error);
-      setAvailableFiles([]);
-    }
-  };
-
-  const sanitizeFileName = (fileName: string): string => {
-    // Remove file extension temporarily
-    const lastDotIndex = fileName.lastIndexOf('.');
-    const nameWithoutExt = lastDotIndex !== -1 ? fileName.substring(0, lastDotIndex) : fileName;
-    const extension = lastDotIndex !== -1 ? fileName.substring(lastDotIndex) : '';
-    
-    // Remove spaces
-    let sanitized = nameWithoutExt.replace(/\s+/g, '');
-    
-    // Remove patterns like (1), (2), etc.
-    sanitized = sanitized.replace(/\(\d+\)/g, '');
-    
-    // Remove parentheses if any remain
-    sanitized = sanitized.replace(/[()]/g, '');
-    
-    // Return sanitized name with extension
-    return sanitized + extension;
+  const showMessage = (type: 'success' | 'error' | 'info', text: string) => {
+    setMessage({ type, text });
+    setTimeout(() => setMessage(null), 5000);
   };
 
   const handleFileUpload = async (file: File) => {
-    setUploadLoading(true);
     try {
-      // Create a new File object with sanitized name
-      const sanitizedName = sanitizeFileName(file.name);
-      const sanitizedFile = sanitizedName !== file.name 
-        ? new File([file], sanitizedName, { type: file.type })
-        : file;
-      
-      const response = await uploadCSV(sanitizedFile);
-      const errorCount = response.errors?.length || 0;
-      
-      // Use the message from backend if available, otherwise construct one
-      if (response.message) {
-        // Show success message
-        showMessage('success', response.message);
-        
-        // If there are errors, also show them
-        if (errorCount > 0) {
-          const errorDetails = response.errors?.slice(0, 3).map((e: { patient_first_name?: string; patient_last_name?: string; invoice_number?: string; error?: string }) => {
-            const firstName = e.patient_first_name || '';
-            const lastName = e.patient_last_name || '';
-            const patient = `${firstName} ${lastName}`.trim() || 'Unknown';
-            const invoice = e.invoice_number || '';
-            const error = e.error || 'Unknown error';
-            return `${patient} (${invoice}): ${error.substring(0, 50)}${error.length > 50 ? '...' : ''}`;
-          }).join('; ') || '';
-          
-          setTimeout(() => {
-            showMessage(
-              'error',
-              `${errorCount} error(s) occurred during upload. ${errorCount <= 3 ? errorDetails : errorDetails + '...'}`
-            );
-          }, 1000);
-        }
-      } else {
-        const newCount = response.new_count || 0;
-        const updatedCount = response.updated_count || 0;
-        if (newCount > 0 || updatedCount > 0) {
-          showMessage('success', `Uploaded ${response.patient_count} patients successfully (${newCount} new, ${updatedCount} updated)`);
-          if (errorCount > 0) {
-            setTimeout(() => {
-              showMessage('error', `${errorCount} error(s) occurred during upload. Check console for details.`);
-            }, 1000);
-          }
-        } else {
-          showMessage('info', `Processed ${response.patient_count} patients. All records already exist in database.`);
-          if (errorCount > 0) {
-            setTimeout(() => {
-              showMessage('error', `${errorCount} error(s) occurred during upload. Check console for details.`);
-            }, 1000);
-          }
-        }
-      }
-      
-      // Log errors to console for debugging
-      if (errorCount > 0 && response.errors) {
-        console.error('Upload errors:', response.errors);
-      }
-      
-      // Store filename and set as selected
-      const uploadedFilename = response.filename || '';
-      setCurrentFile(uploadedFilename || 'database');
-      setSelectedFile(uploadedFilename);  // Auto-select the uploaded file
-      localStorage.setItem('currentFile', uploadedFilename || 'database');
-      
-      // Reload available files and patient data
-      await loadAvailableFiles();
-      // Find the most recent upload for this filename and load its patients
-      if (uploadedFilename) {
-        // Find the most recent upload matching this filename
-        const recentUpload = availableFiles
-          .filter(f => f.filename === uploadedFilename)
-          .sort((a, b) => {
-            const dateA = a.uploaded_at ? new Date(a.uploaded_at).getTime() : 0;
-            const dateB = b.uploaded_at ? new Date(b.uploaded_at).getTime() : 0;
-            return dateB - dateA; // Most recent first
-          })[0];
-        
-        if (recentUpload) {
-          setSelectedUploadId(recentUpload.id);
-          await loadPatientData(recentUpload.id, false);
-        } else {
-          // Fallback to all patients if upload not found
-          setSelectedUploadId(null);
-          await loadPatientData(null, false);
-        }
-      } else {
-        setSelectedUploadId(null);
-        await loadPatientData(null, false);
-      }
-      
-      // Refresh dashboard stats (but stay on upload section)
-      const refreshDashboard = (window as { refreshDashboard?: () => void }).refreshDashboard;
-      if (refreshDashboard) {
-        refreshDashboard();
-      }
-      // Stay on upload section - don't navigate to dashboard
-    } catch (error) {
-      const err = error as { response?: { data?: { detail?: string } } };
-      console.error('Upload failed:', error);
-      showMessage('error', err.response?.data?.detail || 'Failed to upload file');
-    } finally {
-      setUploadLoading(false);
+      await handleFileUploadBase(file);
+    } catch {
+      // Error already handled in hook
+    }
+  };
+
+  const handleFileSelect = async (uploadId: number | null) => {
+    if (uploadId === null) {
+      setSelectedUploadId(null);
+      setSelectedUploadIdRef(null);
+      setSelectedFile('');
+      setCurrentFile('database');
+      await loadPatientData(null, false);
+    } else {
+      const selectedUpload = availableFiles.find(f => f.id === uploadId);
+      setSelectedUploadId(uploadId);
+      setSelectedUploadIdRef(uploadId);
+      setSelectedFile(selectedUpload?.filename || '');
+      setCurrentFile(selectedUpload?.filename || 'database');
+      await loadPatientData(uploadId, false);
     }
   };
 
   const handleBatchCall = () => {
-    // No need to check for file - database always has data
     setShowConfirmModal(true);
   };
 
@@ -334,37 +232,44 @@ function App() {
     showMessage('info', 'Starting batch calls... This may take a few minutes.');
 
     try {
-      // Use upload_id if a specific upload is selected, otherwise use filename for backward compatibility
+      const currentUploadId = getSelectedUploadId();
       let filenameToUse: string | undefined = undefined;
       let uploadIdToUse: number | undefined = undefined;
       
-      if (selectedUploadId) {
-        // Use upload_id for precise filtering (only patients from this specific upload)
-        uploadIdToUse = selectedUploadId;
+      if (currentUploadId) {
+        uploadIdToUse = currentUploadId;
       } else if (selectedFile) {
-        // Fallback to filename filtering (all uploads with this filename)
         filenameToUse = selectedFile;
       }
       
-      const response = await triggerBatchCall(filenameToUse, 0.01, undefined, uploadIdToUse);  // Use selected upload/file if set, otherwise all patients
+      const response = await triggerBatchCall(filenameToUse, 0.01, undefined, uploadIdToUse);
       
-      // Check if there were no calls to make
       if (response.results?.total_attempted === 0) {
-        showMessage('info', 'All eligible patients have already been called. Upload a new file or check existing patient data.');
+        let message = 'No patients were eligible for calling.';
+        const totalPatients = response.results?.total_patients;
+        const filteredOutCount = response.results?.filtered_out_count;
+        if (totalPatients !== undefined && totalPatients !== null && totalPatients > 0) {
+          message = `No eligible patients found (out of ${totalPatients} total patients). `;
+          if (filteredOutCount !== undefined && filteredOutCount !== null && filteredOutCount > 0) {
+            message += `${filteredOutCount} patient(s) were filtered out due to outstanding amount ≤ $0.01 or estimated_date in the future.`;
+          } else {
+            message += 'All patients have already been called or do not meet the criteria.';
+          }
+        } else {
+          message = 'All eligible patients have already been called. Upload a new file or check existing patient data.';
+        }
+        showMessage('info', message);
         setCallingInProgress(false);
         localStorage.removeItem('callingInProgress');
         return;
       }
       
-      // Track active calls - mark all successful calls as active
       const newActiveCalls = new Map(activeCalls);
       const now = Date.now();
       
       if (response.results?.calls) {
         response.results.calls.forEach((call) => {
           if (call.success && call.phone_number) {
-            // Try to find the patient record to get full details for unique key
-            // Match by phone number and patient names from the call response
             const patient = patients.find(p => 
               p.phone_number === call.phone_number &&
               p.patient_first_name === call.patient_first_name &&
@@ -372,37 +277,28 @@ function App() {
             );
             
             if (patient) {
-              // Use unique key if we found the patient record
               const callKey = getPatientCallKey(patient);
               newActiveCalls.set(callKey, now);
             } else {
-              // Fallback to phone number if patient record not found (shouldn't happen normally)
-              // This can happen if the patient list hasn't been loaded yet
               newActiveCalls.set(call.phone_number, now);
             }
           }
         });
         setActiveCalls(newActiveCalls);
-        activeCallsRef.current = newActiveCalls; // Update ref
-        // Don't store activeCalls in localStorage - they should be in-memory only
+        activeCallsRef.current = newActiveCalls;
       }
       
       showMessage('success', response.message);
       
-      // Immediately refresh patient table to show updated data (silent)
-      // Preserve the selected upload filter when refreshing
       if (activeSection === 'upload') {
-        // Immediate refresh right after batch call
-        loadPatientData(selectedUploadId, true);
-        
-        // Start smart auto-refresh that stops when calls complete
+        const currentUploadId = getSelectedUploadId();
+        await loadPatientData(currentUploadId, true);
         startSmartAutoRefresh();
       }
       
-      // Refresh dashboard stats after calls
       const refreshDashboard = (window as { refreshDashboard?: () => void }).refreshDashboard;
       if (refreshDashboard) {
-        setTimeout(() => refreshDashboard(), 2000);  // Refresh after 2 seconds
+        setTimeout(() => refreshDashboard(), 2000);
       }
     } catch (error) {
       const err = error as { response?: { data?: { detail?: string } } };
@@ -411,175 +307,6 @@ function App() {
       setCallingInProgress(false);
       localStorage.removeItem('callingInProgress');
     }
-  };
-
-  const startSmartAutoRefresh = () => {
-    // Clear any existing interval first
-    if (refreshIntervalRef.current) {
-      clearInterval(refreshIntervalRef.current);
-      refreshIntervalRef.current = null;
-    }
-
-    // Only start if calls are in progress
-    if (!callingInProgress) {
-      return;
-    }
-
-    let count = 0;
-    const maxRefreshes = 60; // Maximum 60 refreshes (2 minutes max)
-    const refreshInterval = 2000; // Check every 2 seconds
-    
-    const checkAndRefresh = async () => {
-      // Stop if calls are no longer in progress
-      if (!callingInProgress || count >= maxRefreshes) {
-        if (refreshIntervalRef.current) {
-          clearInterval(refreshIntervalRef.current);
-          refreshIntervalRef.current = null;
-        }
-        setCallingInProgress(false);
-        localStorage.removeItem('callingInProgress');
-        return;
-      }
-
-      // Only refresh if we're in the upload section
-      if (activeSection === 'upload') {
-        const currentActiveCalls = activeCallsRef.current;
-        
-        // Use lightweight call status endpoint for active calls
-        if (currentActiveCalls.size > 0) {
-          // Extract unique phone numbers from call keys (keys are in format "phone|invoice|firstName|lastName")
-          const phoneNumbers = Array.from(new Set(
-            Array.from(currentActiveCalls.keys()).map(key => {
-              // Extract phone number from key (format: "phone|invoice|firstName|lastName")
-              const parts = key.split('|');
-              return parts[0]; // First part is phone number
-            })
-          ));
-          
-          try {
-            // Check call status using lightweight endpoint
-            const statusResponse = await getCallStatus(phoneNumbers);
-            
-            if (statusResponse.success && statusResponse.statuses) {
-              // Check if any calls are still pending/in progress
-              let hasPendingCalls = false;
-              let allCallsCompleted = true;
-              
-              statusResponse.statuses.forEach((status) => {
-                const callStatus = status.recent_call_status || status.call_status;
-                // If status is 'sent' or 'pending', call might still be in progress
-                if (callStatus === 'sent' || callStatus === 'pending' || !callStatus) {
-                  hasPendingCalls = true;
-                  allCallsCompleted = false;
-                } else if (callStatus === 'completed' || callStatus === 'failed') {
-                  // Call is done, but check others
-                }
-              });
-              
-              // If all calls are completed/failed and enough time has passed, stop refreshing
-              if (!hasPendingCalls && allCallsCompleted && count >= 3) {
-                // Refresh full patient data once to get final updates
-                // Preserve the selected upload filter when refreshing
-                await loadPatientData(selectedUploadId, true);
-                
-                // Stop refreshing
-                if (refreshIntervalRef.current) {
-                  clearInterval(refreshIntervalRef.current);
-                  refreshIntervalRef.current = null;
-                }
-                setCallingInProgress(false);
-                localStorage.removeItem('callingInProgress');
-                return;
-              }
-              
-              // If calls are still pending, refresh full patient data every 5th check (every 10 seconds)
-              // This ensures UI stays updated but doesn't overload the server
-              // Preserve the selected upload filter when refreshing
-              if (count % 5 === 0) {
-                await loadPatientData(selectedUploadId, true);
-              }
-            }
-          } catch (error) {
-            console.error('Failed to check call status:', error);
-            // Fallback to full refresh - preserve selected upload filter
-            if (count % 3 === 0) {
-              await loadPatientData(selectedUploadId, true);
-            }
-          }
-        } else {
-          // No active calls, refresh full data once and stop
-          // Preserve the selected upload filter when refreshing
-          await loadPatientData(selectedUploadId, true);
-          if (refreshIntervalRef.current) {
-            clearInterval(refreshIntervalRef.current);
-            refreshIntervalRef.current = null;
-          }
-          setCallingInProgress(false);
-          localStorage.removeItem('callingInProgress');
-          return;
-        }
-      }
-      
-        count++;
-        
-        // Clean up old active calls (older than 10 minutes)
-        setActiveCalls((prevActiveCalls) => {
-          const now = Date.now();
-          const newActiveCalls = new Map(prevActiveCalls);
-          let updated = false;
-          
-          prevActiveCalls.forEach((timestamp, phone) => {
-            if (now - timestamp > 10 * 60 * 1000) { // 10 minutes
-              newActiveCalls.delete(phone);
-              updated = true;
-            }
-          });
-          
-          if (updated) {
-            // Don't store activeCalls in localStorage - they should be in-memory only
-          }
-          
-        activeCallsRef.current = newActiveCalls; // Update ref
-          return newActiveCalls;
-        });
-
-      // Stop after max refreshes
-      if (count >= maxRefreshes) {
-        if (refreshIntervalRef.current) {
-          clearInterval(refreshIntervalRef.current);
-          refreshIntervalRef.current = null;
-        }
-        setCallingInProgress(false);
-        localStorage.removeItem('callingInProgress');
-        // Clear active calls that are older than 10 minutes
-        setActiveCalls(new Map());
-        activeCallsRef.current = new Map(); // Update ref
-        localStorage.removeItem('activeCalls');
-      }
-    };
-    
-    // Start the interval
-    refreshIntervalRef.current = window.setInterval(checkAndRefresh, refreshInterval);
-    
-    // Also do an immediate first refresh
-    // Preserve the selected upload filter when refreshing
-    if (activeSection === 'upload') {
-      loadPatientData(selectedUploadId, true);
-    }
-  };
-
-  const stopAutoRefresh = () => {
-    if (refreshIntervalRef.current) {
-      clearInterval(refreshIntervalRef.current);
-      refreshIntervalRef.current = null;
-    }
-    setCallingInProgress(false);
-    localStorage.removeItem('callingInProgress');
-  };
-
-  const showMessage = (type: 'success' | 'error' | 'info', text: string) => {
-    setMessage({ type, text });
-    setTimeout(() => setMessage(null), 5000);
   };
 
   const handleViewNotes = (patient: Patient) => {
@@ -593,7 +320,6 @@ function App() {
   };
 
   const handleViewDetails = (patient: Patient) => {
-    // Store patient info for details view
     setSelectedPatient(patient);
     setShowPatientDetails(true);
   };
@@ -611,7 +337,6 @@ function App() {
       return;
     }
     
-    // Show confirmation modal first
     setPatientToCall(patient);
     setShowCallConfirmModal(true);
   };
@@ -626,15 +351,8 @@ function App() {
     setShowCallConfirmModal(false);
     setPatientToCall(null);
 
-    // Helper function to get full name
-    const getFullName = (p: Patient): string => {
-      const first = p.patient_first_name || '';
-      const last = p.patient_last_name || '';
-      return `${first} ${last}`.trim() || 'Unknown';
-    };
-
     try {
-      const fullName = getFullName(patient);
+      const fullName = getPatientFullName(patient);
       showMessage('info', `Calling ${fullName} at ${patient.phone_number}...`);
       const response = await callPatient(
         patient.phone_number,
@@ -644,55 +362,47 @@ function App() {
       );
       
       if (response.success) {
-        // Track this call as active using unique key (phone + invoice + names)
         const callKey = getPatientCallKey(patient);
         const newActiveCalls = new Map(activeCalls);
         newActiveCalls.set(callKey, Date.now());
         setActiveCalls(newActiveCalls);
-        activeCallsRef.current = newActiveCalls; // Update ref
-        // Don't store activeCalls in localStorage - they should be in-memory only
+        activeCallsRef.current = newActiveCalls;
         
         showMessage('success', response.message || `Call initiated to ${fullName}`);
         showToast('success', `Call initiated to ${fullName}`);
         
-        // Refresh patient table to show updated call status immediately
-        // Preserve the selected upload filter when refreshing
         if (activeSection === 'upload') {
-          // Immediate refresh right after call
-          loadPatientData(selectedUploadId, true);
+          const currentUploadId = getSelectedUploadId();
+          await loadPatientData(currentUploadId, true);
           
-          // Start smart refresh using lightweight call status endpoint
           let refreshCount = 0;
-          const maxRefreshes = 30; // Check 30 times (60 seconds max for single call)
+          const maxRefreshes = 30;
           const singleCallRefreshInterval = setInterval(async () => {
             if (activeSection === 'upload' && refreshCount < maxRefreshes) {
               try {
-                // Use lightweight endpoint to check call status
                 const statusResponse = await getCallStatus([patient.phone_number]);
                 
                 if (statusResponse.success && statusResponse.statuses.length > 0) {
                   const status = statusResponse.statuses[0];
                   const callStatus = status.recent_call_status || status.call_status;
                   
-                  // If call is completed or failed, refresh full data and stop
-                  // Preserve the selected upload filter when refreshing
                   if (callStatus === 'completed' || callStatus === 'failed') {
-                    await loadPatientData(selectedUploadId, true);
+                    const currentUploadId = getSelectedUploadId();
+                    await loadPatientData(currentUploadId, true);
                     clearInterval(singleCallRefreshInterval);
                     return;
                   }
                 }
                 
-                // Refresh full patient data every 5th check (every 10 seconds)
-                // Preserve the selected upload filter when refreshing
                 if (refreshCount % 5 === 0) {
-                  await loadPatientData(selectedUploadId, true);
+                  const currentUploadId = getSelectedUploadId();
+                  await loadPatientData(currentUploadId, true);
                 }
               } catch (error) {
                 console.error('Failed to check call status:', error);
-                // Fallback to full refresh - preserve selected upload filter
                 if (refreshCount % 3 === 0) {
-                  await loadPatientData(selectedUploadId, true);
+                  const currentUploadId = getSelectedUploadId();
+                  await loadPatientData(currentUploadId, true);
                 }
               }
               
@@ -700,7 +410,7 @@ function App() {
             } else {
               clearInterval(singleCallRefreshInterval);
             }
-          }, 2000); // Every 2 seconds
+          }, 2000);
         }
       } else {
         showMessage('error', response.message || 'Failed to initiate call');
@@ -714,6 +424,27 @@ function App() {
     }
   };
 
+  const handleSectionChange = (section: 'dashboard' | 'upload' | 'invoice-list' | 'users') => {
+    if (section === 'dashboard') {
+      stopAutoRefresh();
+      setActiveSection('dashboard');
+      localStorage.setItem('activeSection', 'dashboard');
+      setTimeout(() => {
+        const refreshDashboard = (window as { refreshDashboard?: () => void }).refreshDashboard;
+        if (refreshDashboard) {
+          refreshDashboard();
+        }
+      }, 100);
+    } else if (section === 'upload') {
+      setActiveSection('upload');
+      localStorage.setItem('activeSection', 'upload');
+      const currentUploadId = getSelectedUploadId();
+      loadPatientData(currentUploadId, false);
+    } else {
+      setActiveSection(section);
+      localStorage.setItem('activeSection', section);
+    }
+  };
 
   // Show loading while checking auth
   if (checkingAuth) {
@@ -734,234 +465,54 @@ function App() {
     return <LoginPage onLogin={handleLogin} />;
   }
 
-  // Check if user is admin
   const isAdmin = user?.role === 'admin';
 
-  // Show main dashboard if authenticated
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
       <Header user={user} onLogout={handleLogout} />
       <div className="max-w-[1920px] mx-auto px-8 py-6 relative z-0">
-
         {message && <MessageAlert message={message} />}
         <ToastContainer toasts={toasts} onRemove={removeToast} />
 
-        {/* Top Navigation Bar */}
-        <div className="mb-6 bg-white rounded-lg shadow-sm border border-gray-200">
-          <div className="flex border-b border-gray-200">
-            <button
-              onClick={() => {
-                // Stop auto-refresh when switching to dashboard
-                if (refreshIntervalRef.current) {
-                  clearInterval(refreshIntervalRef.current);
-                  refreshIntervalRef.current = null;
-                }
-                setActiveSection('dashboard');
-                localStorage.setItem('activeSection', 'dashboard');
-                // Refresh dashboard when switching to it
-                setTimeout(() => {
-                  const refreshDashboard = (window as { refreshDashboard?: () => void }).refreshDashboard;
-                  if (refreshDashboard) {
-                    refreshDashboard();
-                  }
-                }, 100);
-              }}
-              className={`flex-1 px-6 py-4 font-semibold text-sm transition-colors ${
-                activeSection === 'dashboard'
-                  ? 'text-teal-600 border-b-2 border-teal-600 bg-teal-50'
-                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-              }`}
-            >
-              <div className="flex items-center justify-center gap-2">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                </svg>
-                Dashboard
-              </div>
-            </button>
-            <button
-              onClick={() => {
-                setActiveSection('upload');
-                localStorage.setItem('activeSection', 'upload');
-                // Load patient data when switching to upload section
-                // Preserve the selected upload filter if one is selected
-                loadPatientData(selectedUploadId, false);
-              }}
-              className={`flex-1 px-6 py-4 font-semibold text-sm transition-colors ${
-                activeSection === 'upload'
-                  ? 'text-teal-600 border-b-2 border-teal-600 bg-teal-50'
-                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-              }`}
-            >
-              <div className="flex items-center justify-center gap-2">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                </svg>
-                Upload CSV
-              </div>
-            </button>
-            <button
-              onClick={() => {
-                setActiveSection('invoice-list');
-                localStorage.setItem('activeSection', 'invoice-list');
-              }}
-              className={`flex-1 px-6 py-4 font-semibold text-sm transition-colors ${
-                activeSection === 'invoice-list'
-                  ? 'text-teal-600 border-b-2 border-teal-600 bg-teal-50'
-                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-              }`}
-            >
-              <div className="flex items-center justify-center gap-2">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-                Invoice List
-              </div>
-            </button>
-            {isAdmin && (
-              <button
-                onClick={() => {
-                  if (refreshIntervalRef.current) {
-                    clearInterval(refreshIntervalRef.current);
-                    refreshIntervalRef.current = null;
-                  }
-                  setActiveSection('users');
-                  localStorage.setItem('activeSection', 'users');
-                }}
-                className={`flex-1 px-6 py-4 font-semibold text-sm transition-colors ${
-                  activeSection === 'users'
-                    ? 'bg-teal-50 text-teal-700 border-b-2 border-teal-700'
-                    : 'text-gray-600 hover:text-teal-700 hover:bg-gray-50'
-                }`}
-              >
-                User Management
-              </button>
-            )}
-          </div>
-        </div>
+        <NavigationTabs
+          activeSection={activeSection}
+          isAdmin={isAdmin}
+          onSectionChange={handleSectionChange}
+        />
 
-        {/* Dashboard Section */}
         {activeSection === 'dashboard' && (
           <div className="mb-8 space-y-6">
             <Dashboard />
           </div>
         )}
 
-        {/* Invoice List Section */}
         {activeSection === 'invoice-list' && (
           <div className="mb-8">
-            <InvoiceList
-              onFileSelect={() => {
-                // Upload selected, stay on invoice-list to show invoices
-              }}
-            />
+            <InvoiceList onFileSelect={() => {}} />
           </div>
         )}
 
-        {/* User Management Section */}
         {activeSection === 'users' && isAdmin && <UserManagement />}
 
-        {/* Upload CSV Section */}
         {activeSection === 'upload' && (
-          <div className="space-y-6">
-            {/* Two Column Layout */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-              {/* Left Section: Upload CSV */}
-              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                <h2 className="text-lg font-semibold text-gray-900 mb-4">Upload CSV File</h2>
-                <FileUpload onUpload={handleFileUpload} loading={uploadLoading} />
-              </div>
-
-              {/* Right Section: Patient Display Controls */}
-              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                <h2 className="text-lg font-semibold text-gray-900 mb-4">View Patients</h2>
-                
-                {/* File Selector */}
-                <div className="mb-4">
-                  <label className="block text-xs text-gray-500 font-semibold uppercase tracking-wide mb-2">
-                    Select CSV File
-                  </label>
-                  <FileSelectorDropdown
-                    options={availableFiles}
-                    selectedUploadId={selectedUploadId}
-                    onSelect={async (uploadId) => {
-                      if (uploadId === null) {
-                        // All Patients selected
-                        setSelectedUploadId(null);
-                        setSelectedFile('');
-                        setCurrentFile('database');
-                        await loadPatientData(null, false);
-                      } else {
-                        // Specific upload selected
-                        const selectedUpload = availableFiles.find(f => f.id === uploadId);
-                        setSelectedUploadId(uploadId);
-                        setSelectedFile(selectedUpload?.filename || '');
-                        setCurrentFile(selectedUpload?.filename || 'database');
-                        await loadPatientData(uploadId, false);
-                      }
-                    }}
-                  />
-                </div>
-
-                {/* Patient Count & Actions */}
-                <div className="space-y-3">
-                  <div className="px-4 py-3 bg-gray-50 rounded-lg border border-gray-200">
-                <div className="flex items-center justify-between">
-                  <div>
-                        <p className="text-xs text-gray-500 font-semibold uppercase tracking-wide">Patients</p>
-                        <p className="text-sm text-gray-900 font-medium mt-0.5">
-                          {selectedUploadId 
-                            ? (() => {
-                                const selectedUpload = availableFiles.find(f => f.id === selectedUploadId);
-                                return selectedUpload ? `From: ${selectedUpload.displayName}` : 'All Files';
-                              })()
-                            : 'All Files'}
-                        </p>
-                  </div>
-                  <span className="px-3 py-1 bg-gray-600 text-white text-xs font-semibold rounded-full">
-                    {patients.length} patients
-                  </span>
-                </div>
-              </div>
-              
-                  <div className="flex gap-2">
-              <BatchCallButton 
-                onClick={handleBatchCall}
-                disabled={patients.length === 0 || callingInProgress}
-                loading={callingInProgress}
-              />
-              
-              <DownloadButton 
-                filename={selectedUploadId 
-                  ? (() => {
-                      const selectedUpload = availableFiles.find(f => f.id === selectedUploadId);
-                      return selectedUpload?.filename || currentFile;
-                    })()
-                  : currentFile}
-                uploadId={selectedUploadId || undefined}
-                disabled={patients.length === 0}
-              />
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Patient Table */}
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">All Patients</h3>
-              <PatientTable 
-                patients={patients} 
-                loading={loading} 
-                onViewNotes={handleViewNotes}
-                onCallPatient={handleCallPatient}
-                onViewCallHistory={handleViewCallHistory}
-                onViewDetails={handleViewDetails}
-                activeCalls={activeCalls}
-              />
-            </div>
-          </div>
+          <UploadSection
+            availableFiles={availableFiles}
+            selectedUploadId={selectedUploadId}
+            patients={patients}
+            loading={loading}
+            uploadLoading={uploadLoading}
+            callingInProgress={callingInProgress}
+            activeCalls={activeCalls}
+            currentFile={currentFile}
+            onFileUpload={handleFileUpload}
+            onFileSelect={handleFileSelect}
+            onBatchCall={handleBatchCall}
+            onViewNotes={handleViewNotes}
+            onCallPatient={handleCallPatient}
+            onViewCallHistory={handleViewCallHistory}
+            onViewDetails={handleViewDetails}
+          />
         )}
-
 
         <ConfirmModal
           isOpen={showConfirmModal}
@@ -974,7 +525,7 @@ function App() {
         <ConfirmModal
           isOpen={showCallConfirmModal}
           title="Call Patient"
-          message={`Are you sure you want to call ${patientToCall ? `${patientToCall.patient_first_name || ''} ${patientToCall.patient_last_name || ''}`.trim() || 'this patient' : 'this patient'} at ${patientToCall?.phone_number || ''}?`}
+          message={`Are you sure you want to call ${patientToCall ? getPatientFullName(patientToCall) : 'this patient'} at ${patientToCall?.phone_number || ''}?`}
           onConfirm={confirmCallPatient}
           onCancel={() => {
             setShowCallConfirmModal(false);
@@ -1007,9 +558,7 @@ function App() {
             patientFirstName={selectedPatient.patient_first_name}
             patientLastName={selectedPatient.patient_last_name}
             isOpen={showPatientDetails}
-            onClose={() => {
-              setShowPatientDetails(false);
-            }}
+            onClose={() => setShowPatientDetails(false)}
           />
         )}
       </div>
