@@ -145,11 +145,6 @@ function App() {
       setCurrentFile(storedCurrentFile);
     }
     
-    const storedActiveSection = localStorage.getItem('activeSection');
-    if (storedActiveSection && ['dashboard', 'upload', 'invoice-list', 'patients', 'users'].includes(storedActiveSection)) {
-      setActiveSection(storedActiveSection as 'dashboard' | 'upload' | 'invoice-list' | 'patients' | 'users');
-    }
-    
     selectedUploadIdRef.current = null;
     localStorage.removeItem('callingInProgress');
     localStorage.removeItem('activeCalls');
@@ -217,6 +212,7 @@ function App() {
     }
     setIsAuthenticated(true);
     setUser(userData);
+    setActiveSection('dashboard');
   };
 
   // Handle logout
@@ -231,6 +227,7 @@ function App() {
     setIsAuthenticated(false);
     setUser(null);
     setCurrentFile('');
+    setActiveSection('dashboard');
   };
 
   const showMessage = (type: 'success' | 'error' | 'info', text: string) => {
@@ -588,7 +585,6 @@ function App() {
     if (section === 'dashboard') {
       stopAutoRefresh();
       setActiveSection('dashboard');
-      localStorage.setItem('activeSection', 'dashboard');
       setTimeout(() => {
         const refreshDashboard = (window as { refreshDashboard?: () => void }).refreshDashboard;
         if (refreshDashboard) {
@@ -597,12 +593,10 @@ function App() {
       }, 100);
     } else if (section === 'upload') {
       setActiveSection('upload');
-      localStorage.setItem('activeSection', 'upload');
       const currentUploadId = getSelectedUploadId();
       loadPatientData(currentUploadId, false);
     } else {
       setActiveSection(section);
-      localStorage.setItem('activeSection', section);
     }
   };
 
