@@ -106,7 +106,7 @@ export const LoginPage = ({ onLogin }: LoginPageProps) => {
               Welcome Back
             </h1>
             <p className="text-gray-600">
-              Sign in to access the AR Dashboard
+              Log in to access the AR Dashboard
             </p>
           </div>
 
@@ -166,7 +166,7 @@ export const LoginPage = ({ onLogin }: LoginPageProps) => {
                   : 'hover:bg-teal-800 hover:shadow-lg hover:-translate-y-0.5'
               }`}
             >
-              {loading ? 'Signing in...' : 'Sign In'}
+              {loading ?'Logging in...' : 'Log In'}
             </button>
           </form>
 

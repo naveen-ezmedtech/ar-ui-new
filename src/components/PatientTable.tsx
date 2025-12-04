@@ -1,6 +1,7 @@
 import type { Patient } from '../types';
-import { FiEye, FiPhone, FiPhoneOff } from 'react-icons/fi';
+import { FiEye, FiPhone, FiPhoneOff, FiFilter } from 'react-icons/fi';
 import { parseNotes } from '../utils/notesParser';
+import { useState } from 'react';
 
 interface PatientTableProps {
   patients: Patient[];
@@ -13,7 +14,12 @@ interface PatientTableProps {
   activeCalls?: Map<string, { timestamp: number; conversationId?: string; callSid?: string; twilioStatus?: string }>;
 }
 
+type SortColumn = 'name' | 'date';
+type SortDirection = 'asc' | 'desc';
+type SortConfig = { column: SortColumn; direction: SortDirection };
+
 export const PatientTable = ({ patients, loading, onViewNotes, onCallPatient, onEndCall, onViewCallHistory, onViewDetails, activeCalls = new Map() }: PatientTableProps) => {
+  const [sortConfigs, setSortConfigs] = useState<SortConfig[]>([]);
   // Helper function to create unique key for each patient record (same as in InvoiceList)
   const getPatientCallKey = (patient: Patient): string => {
     const phone = patient.phone_number || '';
@@ -151,12 +157,105 @@ export const PatientTable = ({ patients, loading, onViewNotes, onCallPatient, on
     const invoice = patient.invoice_number && patient.invoice_number.toLowerCase() !== 'nan' && patient.invoice_number !== '';
     const firstName = patient.patient_first_name && patient.patient_first_name.toLowerCase() !== 'nan' && patient.patient_first_name !== '';
     const lastName = patient.patient_last_name && patient.patient_last_name.toLowerCase() !== 'nan' && patient.patient_last_name !== '';
-    return !phone || !invoice || !firstName || !lastName;
+    
+    // Check if names match MISSING pattern (e.g., "MISSING_0", "MISSING_1", etc.)
+    const hasValidFirstName = firstName && !/^MISSING(_\d+)?$/i.test(patient.patient_first_name || '');
+    const hasValidLastName = lastName && !/^MISSING(_\d+)?$/i.test(patient.patient_last_name || '');
+    
+    return !phone || !invoice || !hasValidFirstName || !hasValidLastName;
+  };
+
+  // Handle column header click for sorting
+  const handleSort = (column: SortColumn) => {
+    setSortConfigs(prevConfigs => {
+      const existingIndex = prevConfigs.findIndex(config => config.column === column);
+      
+      if (existingIndex !== -1) {
+        // Column already sorted
+        const currentConfig = prevConfigs[existingIndex];
+        
+        if (currentConfig.direction === 'asc') {
+          // First click was asc, now change to desc
+          const newConfigs = [...prevConfigs];
+          newConfigs[existingIndex] = {
+            ...currentConfig,
+            direction: 'desc' as SortDirection
+          };
+          return newConfigs;
+        } else {
+          // Second click was desc, now remove sorting (back to original)
+          return prevConfigs.filter((_, index) => index !== existingIndex);
+        }
+      } else {
+        // Add new sort column - start with ascending
+        const newConfig = { column, direction: 'asc' as SortDirection };
+        return [...prevConfigs, newConfig];
+      }
+    });
+  };
+
+  // Get sort state for a specific column
+  const getSortState = (column: SortColumn): { active: boolean; direction?: SortDirection; priority?: number } => {
+    const index = sortConfigs.findIndex(config => config.column === column);
+    if (index === -1) {
+      return { active: false };
+    }
+    return {
+      active: true,
+      direction: sortConfigs[index].direction,
+      priority: index + 1 // 1 for primary, 2 for secondary
+    };
+  };
+
+  // Sort patients based on current sort settings
+  const sortPatients = (patientsToSort: Patient[]): Patient[] => {
+    if (sortConfigs.length === 0) return patientsToSort;
+
+    return [...patientsToSort].sort((a, b) => {
+      // Apply sorts in order of priority
+      for (const config of sortConfigs) {
+        let comparison = 0;
+
+        if (config.column === 'name') {
+          const nameA = getFullName(a).toLowerCase();
+          const nameB = getFullName(b).toLowerCase();
+          comparison = nameA.localeCompare(nameB);
+        } else if (config.column === 'date') {
+          const hasDateA = !!a.invoice_date;
+          const hasDateB = !!b.invoice_date;
+          
+          // Always put records without dates at the end, regardless of sort direction
+          if (!hasDateA && !hasDateB) {
+            comparison = 0; // Both missing - keep original order
+          } else if (!hasDateA) {
+            return 1; // A is missing - put A after B (always at end)
+          } else if (!hasDateB) {
+            return -1; // B is missing - put A before B (always at end)
+          } else if (a.invoice_date && b.invoice_date) {
+            // Both have dates, compare them normally
+            const dateA = new Date(a.invoice_date).getTime();
+            const dateB = new Date(b.invoice_date).getTime();
+            comparison = dateA - dateB;
+          }
+        }
+
+        // Apply direction
+        const result = config.direction === 'asc' ? comparison : -comparison;
+        
+        // If this sort resulted in a difference, return it
+        // Otherwise, continue to next sort config
+        if (result !== 0) {
+          return result;
+        }
+      }
+
+      return 0; // All sorts resulted in equality
+    });
   };
 
   // Separate patients into complete and missing records
-  const completePatients = patients.filter(p => !hasMissingData(p));
-  const missingPatients = patients.filter(p => hasMissingData(p));
+  const completePatients = sortPatients(patients.filter(p => !hasMissingData(p)));
+  const missingPatients = sortPatients(patients.filter(p => hasMissingData(p)));
 
   if (loading) {
     return (
@@ -181,7 +280,49 @@ export const PatientTable = ({ patients, loading, onViewNotes, onCallPatient, on
         <table className="w-full text-sm table-fixed">
           <thead className="border-b-2 border-teal-700 sticky top-0 bg-white z-10">
             <tr>
-              <th className="px-2 py-3 text-left text-xs font-semibold uppercase tracking-tight text-teal-700 w-[105px]">Patient Name</th>
+              <th className="px-2 py-3 text-left text-xs font-semibold uppercase tracking-tight text-teal-700 w-[105px]">
+                <div className="flex items-center gap-1.5">
+                  <span>Patient Name</span>
+                  <button 
+                    onClick={() => handleSort('name')}
+                    className={(() => {
+                      const sortState = getSortState('name');
+                      if (!sortState.active) {
+                        return 'border border-gray-300 hover:border-teal-400 transition-all cursor-pointer p-1 rounded-md';
+                      }
+                      if (sortState.priority === 1) {
+                        return sortState.direction === 'asc' 
+                          ? 'border-2 border-teal-600 hover:border-teal-700 transition-all cursor-pointer p-1 rounded-md' 
+                          : 'border-2 border-teal-900 hover:border-teal-950 transition-all cursor-pointer p-1 rounded-md';
+                      } else {
+                        return sortState.direction === 'asc' 
+                          ? 'border-2 border-teal-400 hover:border-teal-500 transition-all cursor-pointer p-1 rounded-md' 
+                          : 'border-2 border-teal-700 hover:border-teal-800 transition-all cursor-pointer p-1 rounded-md';
+                      }
+                    })()}
+                    title={(() => {
+                      const sortState = getSortState('name');
+                      if (!sortState.active) return 'Click to sort';
+                      const priorityText = sortState.priority === 1 ? 'Primary' : 'Secondary';
+                      const directionText = sortState.direction === 'asc' ? 'A-Z' : 'Z-A';
+                      return `${priorityText} sort: ${directionText} - Click to toggle`;
+                    })()}
+                  >
+                    <FiFilter 
+                      size={12} 
+                      className={(() => {
+                        const sortState = getSortState('name');
+                        if (!sortState.active) return 'text-gray-400';
+                        if (sortState.priority === 1) {
+                          return sortState.direction === 'asc' ? 'text-teal-600' : 'text-teal-900';
+                        } else {
+                          return sortState.direction === 'asc' ? 'text-teal-400' : 'text-teal-700';
+                        }
+                      })()}
+                    />
+                  </button>
+                </div>
+              </th>
               <th className="px-2 py-3 text-left text-xs font-semibold uppercase tracking-tight text-teal-700 w-[120px]">Phone Number</th>
               <th className="px-2 py-3 text-left text-xs font-semibold uppercase tracking-tight text-teal-700 w-[90px]">Invoice #</th>
               <th className="px-2 py-3 text-left text-xs font-semibold uppercase tracking-tight text-teal-700 w-[75px]">Invoice Date</th>
@@ -218,7 +359,7 @@ export const PatientTable = ({ patients, loading, onViewNotes, onCallPatient, on
                       {getFullName(patient)}
                     </button>
                   ) : (
-                    <span className="text-red-500 italic" title="Patient name is missing">Missing</span>
+                    <span className="text-red-500 italic font-semibold" title="Patient name is missing">Missing</span>
                   )}
                 </td>
                 <td className="px-2 py-3 text-sm text-gray-900 font-medium">
