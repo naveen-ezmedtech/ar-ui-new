@@ -342,7 +342,7 @@ export const UploadSection = ({
               </div>
               
               {/* Batch Call Button for All or Filtered Results */}
-              {filteredPatients.length > 0 && (
+              {filteredPatients.length > 0 && (callStatusFilter !== 'all' || searchTerm.trim()) && (
                 <button
                   onClick={() => setShowBatchCallModal(true)}
                   disabled={callingInProgress}

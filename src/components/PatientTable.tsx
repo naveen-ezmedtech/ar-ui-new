@@ -479,9 +479,9 @@ export const PatientTable = ({ patients, loading, onViewNotes, onCallPatient, on
                       {patient.call_count || 0}
                     </button>
                     
-                    {/* Hover Tooltip showing last 4 call attempts */}
-                    {(patient.call_count ?? 0) > 0 && patient.recent_call_notes && (
-                      <div className="invisible group-hover:visible opacity-0 group-hover:opacity-100 transition-all duration-200 absolute z-50 left-1/2 transform -translate-x-1/2 bottom-full mb-2 w-72 bg-white border-2 border-teal-500 text-gray-900 text-xs rounded-lg shadow-2xl p-4 pointer-events-auto cursor-pointer"
+                    {/* Hover Tooltip showing last 3 call attempts */}
+                    {(patient.call_count ?? 0) > 0 && ((patient.last_3_attempts && patient.last_3_attempts.length > 0) || patient.recent_call_notes) && (
+                      <div className="invisible group-hover:visible opacity-0 group-hover:opacity-100 transition-all duration-200 absolute z-50 left-1/2 transform -translate-x-1/2 top-full mt-2 w-72 bg-white border-2 border-teal-500 text-gray-900 text-xs rounded-lg shadow-2xl p-4 pointer-events-auto cursor-pointer"
                         onClick={(e) => {
                           e.stopPropagation();
                           if (onViewCallHistory) {
@@ -489,21 +489,46 @@ export const PatientTable = ({ patients, loading, onViewNotes, onCallPatient, on
                           }
                         }}
                       >
-                        <div className="font-bold text-teal-600 mb-3 text-sm border-b border-teal-200 pb-2">CALL ATTEMPTS</div>
-                        <div className="space-y-3 max-h-64 overflow-y-auto">
-                          {(() => {
+                        {/* Arrow in top right */}
+                        <div className="absolute top-3 right-3">
+                          <svg className="w-4 h-4 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                          </svg>
+                        </div>
+                        
+                        <div className="space-y-2 max-h-64 overflow-y-auto pr-6">
+                          {patient.last_3_attempts && patient.last_3_attempts.length > 0 ? (
+                            patient.last_3_attempts.map((attempt, idx) => {
+                              // Parse attempt text (format: "Attempt X\nNotes here")
+                              const lines = attempt.split('\n');
+                              const attemptLabel = lines[0];
+                              const noteContent = lines.slice(1).join('\n').trim();
+                              
+                              return (
+                                <div key={idx} className="py-1 text-left">
+                                  <div className="font-semibold text-gray-800 text-xs mb-0.5">{attemptLabel}</div>
+                                  {noteContent && (
+                                    <div className="text-gray-600 text-xs leading-relaxed">
+                                      {noteContent}
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })
+                          ) : patient.recent_call_notes ? (
+                            // Fallback to recent_call_notes if last_3_attempts not available yet
+                            (() => {
                             const notesText = patient.recent_call_notes;
-                            // Show only last 4 attempts (most recent)
                             if (notesText.startsWith('Attempt ')) {
                               const lines = notesText.split('\n');
                               const attemptLabel = lines[0];
                               const noteContent = lines.slice(1).join('\n').trim();
                               
                               return (
-                                <div className="border-l-4 border-teal-500 pl-3 py-1">
-                                  <div className="font-bold text-teal-700 text-sm">{attemptLabel}</div>
+                                  <div className="py-1 text-left">
+                                    <div className="font-semibold text-gray-800 text-xs mb-0.5">{attemptLabel}</div>
                                   {noteContent && (
-                                    <div className="text-gray-700 mt-1 text-xs leading-relaxed">
+                                      <div className="text-gray-600 text-xs leading-relaxed">
                                       {noteContent}
                                     </div>
                                   )}
@@ -511,22 +536,18 @@ export const PatientTable = ({ patients, loading, onViewNotes, onCallPatient, on
                               );
                             }
                             return (
-                              <div className="text-gray-700 text-xs">
+                                <div className="py-1 text-left">
+                                  <div className="text-gray-600 text-xs leading-relaxed">
                                 {notesText}
+                                  </div>
                               </div>
                             );
-                          })()}
+                            })()
+                          ) : null}
                         </div>
-                        {/* Arrow to show more */}
-                        <div className="mt-3 pt-3 border-t border-teal-200 flex items-center justify-center text-teal-600 font-semibold hover:text-teal-700">
-                          <span className="text-xs">Click to view all attempts</span>
-                          <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                          </svg>
-                        </div>
-                        {/* Tooltip arrow */}
-                        <div className="absolute top-full left-1/2 transform -translate-x-1/2 -mt-1">
-                          <div className="border-8 border-transparent border-t-white" style={{filter: 'drop-shadow(0 2px 1px rgba(0,0,0,0.1))'}}></div>
+                        {/* Tooltip arrow pointing up */}
+                        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-[-1px]">
+                          <div className="border-8 border-transparent border-b-teal-500"></div>
                         </div>
                       </div>
                     )}
@@ -821,9 +842,9 @@ export const PatientTable = ({ patients, loading, onViewNotes, onCallPatient, on
                       {patient.call_count || 0}
                     </button>
                     
-                    {/* Hover Tooltip showing last 4 call attempts */}
-                    {(patient.call_count ?? 0) > 0 && patient.recent_call_notes && (
-                      <div className="invisible group-hover:visible opacity-0 group-hover:opacity-100 transition-all duration-200 absolute z-50 left-1/2 transform -translate-x-1/2 bottom-full mb-2 w-72 bg-white border-2 border-teal-500 text-gray-900 text-xs rounded-lg shadow-2xl p-4 pointer-events-auto cursor-pointer"
+                    {/* Hover Tooltip showing last 3 call attempts */}
+                    {(patient.call_count ?? 0) > 0 && ((patient.last_3_attempts && patient.last_3_attempts.length > 0) || patient.recent_call_notes) && (
+                      <div className="invisible group-hover:visible opacity-0 group-hover:opacity-100 transition-all duration-200 absolute z-50 left-1/2 transform -translate-x-1/2 top-full mt-2 w-72 bg-white border-2 border-teal-500 text-gray-900 text-xs rounded-lg shadow-2xl p-4 pointer-events-auto cursor-pointer"
                         onClick={(e) => {
                           e.stopPropagation();
                           if (onViewCallHistory) {
@@ -831,21 +852,46 @@ export const PatientTable = ({ patients, loading, onViewNotes, onCallPatient, on
                           }
                         }}
                       >
-                        <div className="font-bold text-teal-600 mb-3 text-sm border-b border-teal-200 pb-2">CALL ATTEMPTS</div>
-                        <div className="space-y-3 max-h-64 overflow-y-auto">
-                          {(() => {
+                        {/* Arrow in top right */}
+                        <div className="absolute top-3 right-3">
+                          <svg className="w-4 h-4 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                          </svg>
+                        </div>
+                        
+                        <div className="space-y-2 max-h-64 overflow-y-auto pr-6">
+                          {patient.last_3_attempts && patient.last_3_attempts.length > 0 ? (
+                            patient.last_3_attempts.map((attempt, idx) => {
+                              // Parse attempt text (format: "Attempt X\nNotes here")
+                              const lines = attempt.split('\n');
+                              const attemptLabel = lines[0];
+                              const noteContent = lines.slice(1).join('\n').trim();
+                              
+                              return (
+                                <div key={idx} className="py-1 text-left">
+                                  <div className="font-semibold text-gray-800 text-xs mb-0.5">{attemptLabel}</div>
+                                  {noteContent && (
+                                    <div className="text-gray-600 text-xs leading-relaxed">
+                                      {noteContent}
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })
+                          ) : patient.recent_call_notes ? (
+                            // Fallback to recent_call_notes if last_3_attempts not available yet
+                            (() => {
                             const notesText = patient.recent_call_notes;
-                            // Show only last 4 attempts (most recent)
                             if (notesText.startsWith('Attempt ')) {
                               const lines = notesText.split('\n');
                               const attemptLabel = lines[0];
                               const noteContent = lines.slice(1).join('\n').trim();
                               
                               return (
-                                <div className="border-l-4 border-teal-500 pl-3 py-1">
-                                  <div className="font-bold text-teal-700 text-sm">{attemptLabel}</div>
+                                  <div className="py-1 text-left">
+                                    <div className="font-semibold text-gray-800 text-xs mb-0.5">{attemptLabel}</div>
                                   {noteContent && (
-                                    <div className="text-gray-700 mt-1 text-xs leading-relaxed">
+                                      <div className="text-gray-600 text-xs leading-relaxed">
                                       {noteContent}
                                     </div>
                                   )}
@@ -853,22 +899,18 @@ export const PatientTable = ({ patients, loading, onViewNotes, onCallPatient, on
                               );
                             }
                             return (
-                              <div className="text-gray-700 text-xs">
+                                <div className="py-1 text-left">
+                                  <div className="text-gray-600 text-xs leading-relaxed">
                                 {notesText}
+                                  </div>
                               </div>
                             );
-                          })()}
+                            })()
+                          ) : null}
                         </div>
-                        {/* Arrow to show more */}
-                        <div className="mt-3 pt-3 border-t border-teal-200 flex items-center justify-center text-teal-600 font-semibold hover:text-teal-700">
-                          <span className="text-xs">Click to view all attempts</span>
-                          <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                          </svg>
-                        </div>
-                        {/* Tooltip arrow */}
-                        <div className="absolute top-full left-1/2 transform -translate-x-1/2 -mt-1">
-                          <div className="border-8 border-transparent border-t-white" style={{filter: 'drop-shadow(0 2px 1px rgba(0,0,0,0.1))'}}></div>
+                        {/* Tooltip arrow pointing up */}
+                        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-[-1px]">
+                          <div className="border-8 border-transparent border-b-teal-500"></div>
                         </div>
                       </div>
                     )}

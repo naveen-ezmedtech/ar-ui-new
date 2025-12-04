@@ -126,7 +126,8 @@ export const CallHistoryModal = ({ isOpen, patientFirstName, patientLastName, ph
             <div className="space-y-4">
               {calls.map((call, index) => {
                 // Parse "Attempt X" from notes if it exists (backend adds it)
-                let attemptLabel = `Attempt ${index + 1}`;
+                // Calculate attempt number in reverse (most recent = highest number)
+                let attemptLabel = `Attempt ${calls.length - index}`;
                 let noteContent = call.notes || '';
                 
                 if (call.notes && call.notes.startsWith('Attempt ')) {

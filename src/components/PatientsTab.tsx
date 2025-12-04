@@ -266,8 +266,8 @@ export const PatientsTab = ({
               </span>
             </div>
             
-            {/* Batch Call Button for All or Filtered Results */}
-            {onBatchCall && filteredPatients.length > 0 && (
+            {/* Batch Call Button for Filtered Results (when filter is applied OR search is active) */}
+            {onBatchCall && filteredPatients.length > 0 && (callStatusFilter !== 'all' || searchTerm.trim()) && (
               <button
                 onClick={() => setShowBatchCallModal(true)}
                 disabled={callingInProgress}

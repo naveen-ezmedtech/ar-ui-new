@@ -36,7 +36,11 @@ function App() {
   const [currentFile, setCurrentFile] = useState<string>('');
   const [selectedFile, setSelectedFile] = useState<string>('');
   const [selectedUploadId, setSelectedUploadId] = useState<number | null>(null);
-  const [activeSection, setActiveSection] = useState<'dashboard' | 'upload' | 'invoice-list' | 'patients' | 'users'>('dashboard');
+  const [activeSection, setActiveSection] = useState<'dashboard' | 'upload' | 'invoice-list' | 'patients' | 'users'>(() => {
+    // Restore active section from localStorage on page load
+    const storedSection = localStorage.getItem('activeSection');
+    return (storedSection as 'dashboard' | 'upload' | 'invoice-list' | 'patients' | 'users') || 'dashboard';
+  });
   const [message, setMessage] = useState<Message | null>(null);
   const [callingInProgress, setCallingInProgress] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -199,6 +203,7 @@ function App() {
     }
     setIsAuthenticated(true);
     setUser(userData);
+    localStorage.setItem('activeSection', 'dashboard');
     setActiveSection('dashboard');
   };
 
@@ -211,6 +216,7 @@ function App() {
     localStorage.removeItem('currentFile');
     localStorage.removeItem('callingInProgress');
     localStorage.removeItem('activeCalls');
+    localStorage.setItem('activeSection', 'dashboard');
     setIsAuthenticated(false);
     setUser(null);
     setCurrentFile('');
@@ -538,22 +544,22 @@ function App() {
         // Keep polling for 5 more seconds to catch the post-call webhook with summary
         setTimeout(() => {
           console.log('🛑 5 seconds elapsed - stopping polling for disconnected call');
-          
-          // Clear the polling interval for this call
-          const existingInterval = pollingIntervalsRef.current.get(callKey);
-          if (existingInterval) {
-            clearInterval(existingInterval);
-            pollingIntervalsRef.current.delete(callKey);
-          }
-          
+        
+        // Clear the polling interval for this call
+        const existingInterval = pollingIntervalsRef.current.get(callKey);
+        if (existingInterval) {
+          clearInterval(existingInterval);
+          pollingIntervalsRef.current.delete(callKey);
+        }
+        
           // Remove from activeCalls
-          setActiveCalls(prev => {
-            const newMap = new Map(prev);
-            newMap.delete(callKey);
+        setActiveCalls(prev => {
+          const newMap = new Map(prev);
+          newMap.delete(callKey);
             activeCallsRef.current = newMap;
-            return newMap;
-          });
-          
+          return newMap;
+        });
+        
           // Final refresh to get updated notes from webhook
           if (activeSection === 'upload') {
             const currentUploadId = getSelectedUploadId();
@@ -579,6 +585,9 @@ function App() {
   };
 
   const handleSectionChange = (section: 'dashboard' | 'upload' | 'invoice-list' | 'patients' | 'users') => {
+    // Save active section to localStorage so it persists on page refresh
+    localStorage.setItem('activeSection', section);
+    
     if (section === 'dashboard') {
       stopAutoRefresh();
       setActiveSection('dashboard');
