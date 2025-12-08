@@ -137,6 +137,26 @@ export const PatientTable = ({ patients, loading, onViewNotes, onCallPatient, on
     }).format(numAmount);
   };
 
+  // Format date string without timezone conversion (e.g., "2025-12-03" -> "Dec 3, 25")
+  const formatDateString = (dateString: string): string => {
+    if (!dateString) return '';
+    
+    // Parse YYYY-MM-DD format directly without timezone conversion
+    const parts = dateString.split('-');
+    if (parts.length !== 3) return dateString; // Return as-is if format is unexpected
+    
+    const year = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10);
+    const day = parseInt(parts[2], 10);
+    
+    if (isNaN(year) || isNaN(month) || isNaN(day)) return dateString;
+    
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const shortYear = year.toString().slice(-2);
+    
+    return `${monthNames[month - 1]} ${day}, ${shortYear}`;
+  };
+
   // Helper function to get full name
   const getFullName = (patient: Patient): string => {
     const first = patient.patient_first_name || '';
@@ -380,11 +400,7 @@ export const PatientTable = ({ patients, loading, onViewNotes, onCallPatient, on
                 </td>
                 <td className="px-2 py-3 text-sm text-gray-700">
                   {patient.invoice_date ? (
-                    new Date(patient.invoice_date).toLocaleDateString('en-US', {
-                      month: 'short',
-                      day: 'numeric',
-                      year: '2-digit'
-                    })
+                    formatDateString(patient.invoice_date)
                   ) : (
                     <span className="text-gray-400">-</span>
                   )}
@@ -743,11 +759,7 @@ export const PatientTable = ({ patients, loading, onViewNotes, onCallPatient, on
                 </td>
                 <td className="px-2 py-3 text-sm text-gray-700">
                   {patient.invoice_date ? (
-                    new Date(patient.invoice_date).toLocaleDateString('en-US', {
-                      month: 'short',
-                      day: 'numeric',
-                      year: '2-digit'
-                    })
+                    formatDateString(patient.invoice_date)
                   ) : (
                     <span className="text-gray-400">-</span>
                   )}
