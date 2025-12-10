@@ -293,7 +293,8 @@ export const callPatient = async (
   phoneNumber: string, 
   invoiceNumber?: string, 
   patientFirstName?: string,
-  patientLastName?: string
+  patientLastName?: string,
+  clinic?: string
 ): Promise<{ 
   success: boolean; 
   message: string;
@@ -303,10 +304,32 @@ export const callPatient = async (
   outstanding_amount?: string;
   conversation_id?: string;
 }> => {
-  const params: { invoice_number?: string; patient_first_name?: string; patient_last_name?: string } = {};
+  const params: { 
+    invoice_number?: string; 
+    patient_first_name?: string; 
+    patient_last_name?: string;
+    clinic?: string;
+  } = {};
   if (invoiceNumber) params.invoice_number = invoiceNumber;
   if (patientFirstName) params.patient_first_name = patientFirstName;
   if (patientLastName) params.patient_last_name = patientLastName;
+  
+  // Pass clinic id for backend scoping (fallback to stored user if not provided)
+  if (clinic) {
+    params.clinic = clinic;
+  } else {
+    const storedUser = localStorage.getItem('user');
+    if (storedUser) {
+      try {
+        const parsedUser = JSON.parse(storedUser) as { clinic?: string };
+        if (parsedUser?.clinic) {
+          params.clinic = parsedUser.clinic;
+        }
+      } catch {
+        // ignore malformed user data
+      }
+    }
+  }
   
   const response = await api.post(`/call-patient/${phoneNumber}`, null, {
     params
@@ -346,6 +369,11 @@ export const getCallStatus = async (callSid: string): Promise<{
     phone_number: string;
   };
 }> => {
+  // Ensure we have an access token before polling; prevents noisy 401s
+  const token = localStorage.getItem('access_token');
+  if (!token) {
+    throw new Error('Missing access token');
+  }
   const response = await api.get(`/status/${callSid}`);
   return response.data;
 };

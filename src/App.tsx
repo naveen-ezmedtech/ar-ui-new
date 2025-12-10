@@ -118,6 +118,13 @@ function App() {
     const ssoToken = urlParams.get('token');
     
     if (ssoToken) {
+      // Fresh SSO login: wipe any stale tokens/user data so we don't mix clinics
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('refresh_token');
+      localStorage.removeItem('user');
+      localStorage.removeItem('currentFile');
+      localStorage.removeItem('callingInProgress');
+      localStorage.removeItem('activeCalls');
       setIsSSOMode(true);
       setCheckingAuth(false);
       return;
@@ -201,6 +208,8 @@ function App() {
     if (window.location.search) {
       window.history.replaceState({}, document.title, window.location.pathname);
     }
+    // Persist latest user for downstream clinic scoping
+    localStorage.setItem('user', JSON.stringify(userData));
     setIsAuthenticated(true);
     setUser(userData);
     localStorage.setItem('activeSection', 'dashboard');

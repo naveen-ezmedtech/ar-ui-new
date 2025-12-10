@@ -42,6 +42,10 @@ export const SSOLogin = ({ onLogin }: SSOLoginProps) => {
         const data = await response.json();
 
         // Store tokens and user in localStorage
+        // Clear any stale session data to avoid cross-clinic leakage
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('refresh_token');
+        localStorage.removeItem('user');
         localStorage.setItem('access_token', data.access_token);
         localStorage.setItem('refresh_token', data.refresh_token);
         localStorage.setItem('user', JSON.stringify(data.user));
