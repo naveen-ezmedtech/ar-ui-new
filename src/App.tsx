@@ -399,7 +399,8 @@ function App() {
         patient.phone_number,
         patient.invoice_number,
         patient.patient_first_name,
-        patient.patient_last_name
+        patient.patient_last_name,
+        patient.patient_dob
       );
       
       if (response.success) {

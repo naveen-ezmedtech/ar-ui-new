@@ -294,6 +294,7 @@ export const callPatient = async (
   invoiceNumber?: string, 
   patientFirstName?: string,
   patientLastName?: string,
+  patientDob?: string,
   clinic?: string
 ): Promise<{ 
   success: boolean; 
@@ -308,11 +309,13 @@ export const callPatient = async (
     invoice_number?: string; 
     patient_first_name?: string; 
     patient_last_name?: string;
+    patient_dob?: string;
     clinic?: string;
   } = {};
   if (invoiceNumber) params.invoice_number = invoiceNumber;
   if (patientFirstName) params.patient_first_name = patientFirstName;
   if (patientLastName) params.patient_last_name = patientLastName;
+  if (patientDob) params.patient_dob = patientDob;
   
   // Pass clinic id for backend scoping (fallback to stored user if not provided)
   if (clinic) {

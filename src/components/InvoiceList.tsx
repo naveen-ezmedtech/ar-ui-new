@@ -266,7 +266,8 @@ export const InvoiceList = ({ onFileSelect }: InvoiceListProps) => {
         phoneNumber, 
         patientToCall.invoice_number, 
         patientToCall.patient_first_name,
-        patientToCall.patient_last_name
+        patientToCall.patient_last_name,
+        patientToCall.patient_dob
       );
       
       if (result.success) {
