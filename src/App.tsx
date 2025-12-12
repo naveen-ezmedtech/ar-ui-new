@@ -18,6 +18,8 @@ import {
   ToastContainer,
   useToast
 } from './components';
+// Keep import available for easy re-enable of user management
+void UserManagement;
 import { triggerBatchCall, callPatient, endCall, getCallStatus } from './services/api';
 import { usePatientData } from './hooks/usePatientData';
 import { useFileUpload } from './hooks/useFileUpload';
