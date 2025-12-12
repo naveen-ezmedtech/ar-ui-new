@@ -5,6 +5,8 @@ interface NavigationTabsProps {
 }
 
 export const NavigationTabs = ({ activeSection, isAdmin, onSectionChange }: NavigationTabsProps) => {
+  // Keep isAdmin parameter for when user management is re-enabled
+  void isAdmin;
   return (
     <div className="mb-6 bg-white rounded-lg shadow-sm border border-gray-200">
       <div className="flex border-b border-gray-200">
@@ -76,7 +78,7 @@ export const NavigationTabs = ({ activeSection, isAdmin, onSectionChange }: Navi
             Patients
           </div>
         </button>
-        {isAdmin && (
+        {/* {isAdmin && (
           <button
             onClick={() => {
               onSectionChange('users');
@@ -89,7 +91,7 @@ export const NavigationTabs = ({ activeSection, isAdmin, onSectionChange }: Navi
           >
             User Management
           </button>
-        )}
+        )} */}
       </div>
     </div>
   );

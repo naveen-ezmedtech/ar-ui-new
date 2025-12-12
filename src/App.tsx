@@ -673,7 +673,7 @@ function App() {
           </div>
         )}
 
-        {activeSection === 'users' && isAdmin && <UserManagement />}
+        {/* {activeSection === 'users' && isAdmin && <UserManagement />} */}
 
         {activeSection === 'upload' && (
           <UploadSection
