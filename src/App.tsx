@@ -97,7 +97,7 @@ function App() {
     },
   });
 
-  const { startSmartAutoRefresh, stopAutoRefresh } = useAutoRefresh({
+  const { stopAutoRefresh } = useAutoRefresh({
     activeSection,
     callingInProgress,
     setCallingInProgress,
@@ -309,10 +309,11 @@ function App() {
       
       const newActiveCalls = new Map(activeCalls);
       const now = Date.now();
+      const batchCallSids: Array<{ callKey: string; callSid: string }> = [];
       
       if (response.results?.calls) {
         response.results.calls.forEach((call) => {
-          if (call.success && call.phone_number) {
+          if (call.success && call.phone_number && call.call_sid) {
             const patient = patients.find(p => 
               p.phone_number === call.phone_number &&
               p.patient_first_name === call.patient_first_name &&
@@ -321,22 +322,160 @@ function App() {
             
             if (patient) {
               const callKey = getPatientCallKey(patient);
-              newActiveCalls.set(callKey, { timestamp: now, conversationId: call.conversation_id });
+              newActiveCalls.set(callKey, { 
+                timestamp: now, 
+                conversationId: call.conversation_id,
+                callSid: call.call_sid
+              });
+              
+              // Collect call info for parallel polling
+              if (activeSection === 'upload') {
+                batchCallSids.push({ callKey, callSid: call.call_sid });
+              }
             } else {
-              newActiveCalls.set(call.phone_number, { timestamp: now, conversationId: call.conversation_id });
+              newActiveCalls.set(call.phone_number, { 
+                timestamp: now, 
+                conversationId: call.conversation_id,
+                callSid: call.call_sid
+              });
             }
           }
         });
         setActiveCalls(newActiveCalls);
         activeCallsRef.current = newActiveCalls;
+        
+        // Set up parallel polling for all batch calls (single shared interval)
+        if (activeSection === 'upload' && batchCallSids.length > 0) {
+          let pollCount = 0;
+          const maxPolls = 600; // Safety limit: 30 minutes (600 × 3s)
+          
+          const sharedBatchPollingInterval = setInterval(async () => {
+            // Safety check: stop after 30 minutes
+            if (pollCount >= maxPolls) {
+              console.log('⚠️ Safety limit reached for batch calls - stopping polling');
+              clearInterval(sharedBatchPollingInterval);
+              pollingIntervalsRef.current.delete('batch_polling');
+              return;
+            }
+            
+            pollCount++;
+            
+            // Get current active calls
+            const currentActiveCalls = activeCallsRef.current;
+            if (currentActiveCalls.size === 0) {
+              console.log('✅ No active calls - stopping batch polling');
+              clearInterval(sharedBatchPollingInterval);
+              pollingIntervalsRef.current.delete('batch_polling');
+              return;
+            }
+            
+            // Collect all active call SIDs that need checking
+            const callsToCheck: Array<{ callKey: string; callSid: string }> = [];
+            currentActiveCalls.forEach((callData, callKey) => {
+              if (callData.callSid) {
+                // Only check calls that haven't completed yet
+                if (!callData.twilioStatus || !['completed', 'busy', 'failed', 'no-answer', 'canceled'].includes(callData.twilioStatus)) {
+                  callsToCheck.push({ callKey, callSid: callData.callSid });
+                }
+              }
+            });
+            
+            if (callsToCheck.length === 0) {
+              // All calls are complete - refresh once and stop polling
+              console.log('✅ All batch calls complete - refreshing patient data and stopping polling');
+              clearInterval(sharedBatchPollingInterval);
+              pollingIntervalsRef.current.delete('batch_polling');
+              
+              // Refresh patient data once silently
+              try {
+                const currentUploadId = getSelectedUploadId();
+                await loadPatientData(currentUploadId, true);
+              } catch (error) {
+                console.error('Failed to refresh patient data:', error);
+              }
+              return;
+            }
+            
+            // Check all calls in parallel using Promise.all
+            try {
+              const statusPromises = callsToCheck.map(({ callSid }) => getCallStatus(callSid));
+              const statusResponses = await Promise.all(statusPromises);
+              
+              // Update activeCalls with latest statuses and remove completed ones
+              let allComplete = false;
+              setActiveCalls(prev => {
+                const newMap = new Map(prev);
+                let hasChanges = false;
+                
+                statusResponses.forEach((statusResponse, index) => {
+                  const { callKey } = callsToCheck[index];
+                  const existingCall = newMap.get(callKey);
+                  
+                  if (existingCall) {
+                    const twilioStatus = statusResponse.twilio?.status;
+                    const isCallComplete = twilioStatus && ['completed', 'busy', 'failed', 'no-answer', 'canceled'].includes(twilioStatus);
+                    
+                    if (isCallComplete) {
+                      console.log(`✅ Batch call ${callKey} ${twilioStatus} - removing from active calls`);
+                      newMap.delete(callKey);
+                      hasChanges = true;
+                    } else {
+                      // Update status for calls still in progress
+                      newMap.set(callKey, {
+                        ...existingCall,
+                        twilioStatus: twilioStatus
+                      });
+                      hasChanges = true;
+                    }
+                  }
+                });
+                
+                // Update ref with new state
+                activeCallsRef.current = newMap;
+                
+                // Check if all calls are now complete
+                if (newMap.size === 0) {
+                  allComplete = true;
+                }
+                
+                return hasChanges ? newMap : prev;
+              });
+              
+              // If all calls are complete, refresh and stop polling immediately
+              if (allComplete) {
+                console.log('✅ All batch calls complete - refreshing patient data and stopping polling');
+                clearInterval(sharedBatchPollingInterval);
+                pollingIntervalsRef.current.delete('batch_polling');
+                
+                // Refresh patient data once silently
+                try {
+                  const currentUploadId = getSelectedUploadId();
+                  await loadPatientData(currentUploadId, true);
+                } catch (error) {
+                  console.error('Failed to refresh patient data:', error);
+                }
+                return; // Stop this polling cycle
+              }
+            } catch (error) {
+              console.error('Failed to check batch call statuses:', error);
+            }
+          }, 3000); // Poll every 3 seconds
+          
+          // Store the shared interval reference
+          pollingIntervalsRef.current.set('batch_polling', sharedBatchPollingInterval);
+        }
       }
       
       showMessage('success', response.message);
       
+      // Reset callingInProgress - batch calls have been initiated, button should go back to normal
+      // Individual calls will be tracked via activeCalls and their polling intervals
+      setCallingInProgress(false);
+      localStorage.removeItem('callingInProgress');
+      
       if (activeSection === 'upload') {
         const currentUploadId = getSelectedUploadId();
         await loadPatientData(currentUploadId, true);
-        startSmartAutoRefresh();
       }
       
       const refreshDashboard = (window as { refreshDashboard?: () => void }).refreshDashboard;

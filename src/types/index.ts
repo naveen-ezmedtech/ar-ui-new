@@ -94,6 +94,7 @@ export interface BatchCallResult {
       timestamp: string;
       success: boolean;
       conversation_id?: string;
+      call_sid?: string;
     }>;
   };
 }
