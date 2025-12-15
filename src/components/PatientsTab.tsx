@@ -9,7 +9,7 @@ interface PatientsTabProps {
   onViewNotes: (patient: Patient) => void;
   onViewCallHistory: (patient: Patient) => void;
   onViewDetails: (patient: Patient) => void;
-  onBatchCall?: () => void;
+  onBatchCall?: (invoiceIds?: number[]) => void;  // Pass filtered invoice IDs
   callingInProgress?: boolean;
   showMessage: (type: 'success' | 'error' | 'info', text: string) => void;
 }
@@ -313,7 +313,11 @@ export const PatientsTab = ({
         onConfirm={() => {
           setShowBatchCallModal(false);
           if (onBatchCall) {
-            onBatchCall();
+            // Pass filtered patient invoice IDs
+            const filteredInvoiceIds = filteredPatients
+              .filter(p => p.id !== undefined)
+              .map(p => p.id as number);
+            onBatchCall(filteredInvoiceIds.length > 0 ? filteredInvoiceIds : undefined);
           }
         }}
         onCancel={() => setShowBatchCallModal(false)}

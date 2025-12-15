@@ -22,7 +22,7 @@ interface UploadSectionProps {
   currentFile: string;
   onFileUpload: (file: File) => Promise<void>;
   onFileSelect: (uploadId: number | null) => Promise<void>;
-  onBatchCall: () => void;
+  onBatchCall: (invoiceIds?: number[]) => void;  // Pass filtered invoice IDs
   onViewNotes: (patient: Patient) => void;
   onCallPatient: (patient: Patient) => void;
   onEndCall: (patient: Patient) => void;
@@ -391,7 +391,11 @@ export const UploadSection = ({
         message={`You are about to initiate calls to ${filteredPatients.length} filtered patient${filteredPatients.length !== 1 ? 's' : ''}. Calls will be made automatically and summaries will be generated after each call completes.`}
         onConfirm={() => {
           setShowBatchCallModal(false);
-          onBatchCall();
+          // Pass filtered patient invoice IDs
+          const filteredInvoiceIds = filteredPatients
+            .filter(p => p.id !== undefined)
+            .map(p => p.id as number);
+          onBatchCall(filteredInvoiceIds.length > 0 ? filteredInvoiceIds : undefined);
         }}
         onCancel={() => setShowBatchCallModal(false)}
       />

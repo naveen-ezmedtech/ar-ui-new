@@ -277,13 +277,15 @@ export const triggerBatchCall = async (
   csvFilename?: string,
   minOutstanding: number = 0.01,
   maxCalls?: number,
-  uploadId?: number
+  uploadId?: number,
+  invoiceIds?: number[]  // Filter by specific invoice IDs (for UI filtered patients)
 ): Promise<BatchCallResult> => {
   const response = await api.post('/call-batch', {
     csv_filename: csvFilename,  // Optional, kept for backward compatibility
     upload_id: uploadId,  // Filter by specific upload ID (takes precedence over csv_filename)
     min_outstanding: minOutstanding,
     max_calls: maxCalls,
+    invoice_ids: invoiceIds,  // Filter by specific invoice IDs (for UI filtered patients)
   });
   return response.data;
 };
@@ -344,6 +346,7 @@ export const callPatient = async (
 export const getCallStatus = async (callSid: string): Promise<{
   success: boolean;
   call_sid: string;
+  should_stop_polling?: boolean; // Explicit flag indicating polling should stop
   twilio: {
     success: boolean;
     call_sid: string;
