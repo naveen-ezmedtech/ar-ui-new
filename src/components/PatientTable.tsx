@@ -297,10 +297,10 @@ export const PatientTable = ({ patients, loading, onViewNotes, onCallPatient, on
   return (
     <div className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
       <div className="max-h-[calc(100vh-200px)] overflow-y-auto">
-        <table className="w-full text-sm table-fixed">
+        <table className="w-full text-sm table-auto">
           <thead className="border-b-2 border-teal-700 sticky top-0 bg-white z-10">
             <tr>
-              <th className="px-2 py-3 text-left text-xs font-semibold uppercase tracking-tight text-teal-700 w-[105px]">
+              <th className="px-2 py-3 text-left text-xs font-semibold uppercase tracking-tight text-teal-700 w-[150px]">
                 <div className="flex items-center gap-1.5">
                   <span>Patient Name</span>
                   <button 
@@ -343,20 +343,17 @@ export const PatientTable = ({ patients, loading, onViewNotes, onCallPatient, on
                   </button>
                 </div>
               </th>
-              <th className="px-2 py-3 text-left text-xs font-semibold uppercase tracking-tight text-teal-700 w-[120px]">Phone Number</th>
-              <th className="px-2 py-3 text-left text-xs font-semibold uppercase tracking-tight text-teal-700 w-[90px]">Invoice #</th>
-              <th className="px-2 py-3 text-left text-xs font-semibold uppercase tracking-tight text-teal-700 w-[75px]">Invoice Date</th>
-              <th className="px-2 py-3 text-left text-xs font-semibold uppercase tracking-tight text-teal-700 w-[75px]">Amount</th>
-              <th className="px-2 py-3 text-left text-xs font-semibold uppercase tracking-tight text-teal-700 w-[85px]">Outstanding Balance</th>
-              <th className="px-2 py-3 text-left text-xs font-semibold uppercase tracking-tight text-teal-700 w-[70px]">Aging</th>
-              <th className="px-2 py-3 text-left text-xs font-semibold uppercase tracking-tight text-teal-700 w-[130px]">Coverage Notes</th>
-              <th className="px-2 py-3 text-center text-xs font-semibold uppercase tracking-tight text-teal-700 w-[50px]">Link Req</th>
-              <th className="px-2 py-3 text-center text-xs font-semibold uppercase tracking-tight text-teal-700 w-[50px]">Link Sent</th>
-              <th className="px-2 py-3 text-left text-xs font-semibold uppercase tracking-tight text-teal-700 w-[75px]">Est Date</th>
-              <th className="px-2 py-3 text-center text-xs font-semibold uppercase tracking-tight text-teal-700 w-[50px]">Call Status</th>
-              <th className="px-2 py-3 text-center text-xs font-semibold uppercase tracking-tight text-teal-700 w-[45px]">Calls</th>
-              <th className="px-2 py-3 text-left text-xs font-semibold uppercase tracking-tight text-teal-700 w-[130px]">Recent Notes</th>
-              <th className="px-2 py-3 text-left text-xs font-semibold uppercase tracking-tight text-teal-700 w-[100px]">Actions</th>
+              <th className="px-2 py-3 text-left text-xs font-semibold uppercase tracking-tight text-teal-700 w-[150px]">Phone Number</th>
+              <th className="px-2 py-3 text-left text-xs font-semibold uppercase tracking-tight text-teal-700 w-[110px]">Invoice Date</th>
+              <th className="px-2 py-3 text-left text-xs font-semibold uppercase tracking-tight text-teal-700 w-[90px]">Amount</th>
+              <th className="px-2 py-3 text-left text-xs font-semibold uppercase tracking-tight text-teal-700 w-[130px]">Outstanding Balance</th>
+              <th className="px-2 py-3 text-center text-xs font-semibold uppercase tracking-tight text-teal-700 w-[70px]">Link Req</th>
+              <th className="px-2 py-3 text-center text-xs font-semibold uppercase tracking-tight text-teal-700 w-[70px]">Link Sent</th>
+              <th className="px-2 py-3 text-left text-xs font-semibold uppercase tracking-tight text-teal-700 w-[100px]">Est Date</th>
+              <th className="px-2 py-3 text-center text-xs font-semibold uppercase tracking-tight text-teal-700 w-[80px]">Call Status</th>
+              <th className="px-2 py-3 text-center text-xs font-semibold uppercase tracking-tight text-teal-700 w-[60px]">Calls</th>
+              <th className="px-2 py-3 text-left text-xs font-semibold uppercase tracking-tight text-teal-700 w-[180px]">Recent Notes</th>
+              <th className="px-2 py-3 text-left text-xs font-semibold uppercase tracking-tight text-teal-700 w-[150px]">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
@@ -391,13 +388,6 @@ export const PatientTable = ({ patients, loading, onViewNotes, onCallPatient, on
                     </span>
                   )}
                 </td>
-                <td className="px-2 py-3 text-sm text-gray-700 font-mono">
-                  {patient.invoice_number && patient.invoice_number.toLowerCase() !== 'nan' ? (
-                    patient.invoice_number
-                  ) : (
-                    <span className="text-red-500 italic" title="Invoice number is missing">Missing</span>
-                  )}
-                </td>
                 <td className="px-2 py-3 text-sm text-gray-700">
                   {patient.invoice_date ? (
                     formatDateString(patient.invoice_date)
@@ -418,18 +408,6 @@ export const PatientTable = ({ patients, loading, onViewNotes, onCallPatient, on
                     <span className="text-red-600 font-bold">{patient.outstanding_amount}</span>
                   ) : (
                     <span className="text-gray-400">-</span>
-                  )}
-                </td>
-                <td className="px-2 py-3 text-sm text-gray-700">{patient.aging_bucket}</td>
-                <td className="px-2 py-3 text-sm w-[130px]">
-                  {patient.coverage_notes && patient.coverage_notes.trim() ? (
-                    <div className="group relative">
-                      <p className="text-xs text-gray-700 leading-tight whitespace-pre-wrap break-words">
-                        {patient.coverage_notes}
-                      </p>
-                    </div>
-                  ) : (
-                    <span className="text-gray-400 text-sm">-</span>
                   )}
                 </td>
                 <td className="px-2 py-3 text-sm text-center">
@@ -713,7 +691,7 @@ export const PatientTable = ({ patients, loading, onViewNotes, onCallPatient, on
             {/* Teal Separator Line */}
             {completePatients.length > 0 && missingPatients.length > 0 && (
               <tr>
-                <td colSpan={15} className="px-0 py-0">
+                <td colSpan={12} className="px-0 py-0">
                   <div className="h-px bg-teal-700 w-full mx-auto"></div>
                 </td>
               </tr>
@@ -750,13 +728,6 @@ export const PatientTable = ({ patients, loading, onViewNotes, onCallPatient, on
                     </span>
                   )}
                 </td>
-                <td className="px-2 py-3 text-sm text-gray-700 font-mono">
-                  {patient.invoice_number && patient.invoice_number.toLowerCase() !== 'nan' && patient.invoice_number !== '' ? (
-                    patient.invoice_number
-                  ) : (
-                    <span className="text-red-500 italic font-semibold" title="Invoice number is missing">Missing</span>
-                  )}
-                </td>
                 <td className="px-2 py-3 text-sm text-gray-700">
                   {patient.invoice_date ? (
                     formatDateString(patient.invoice_date)
@@ -777,18 +748,6 @@ export const PatientTable = ({ patients, loading, onViewNotes, onCallPatient, on
                     <span className="text-red-600 font-bold">{patient.outstanding_amount}</span>
                   ) : (
                     <span className="text-gray-400">-</span>
-                  )}
-                </td>
-                <td className="px-2 py-3 text-sm text-gray-700">{patient.aging_bucket}</td>
-                <td className="px-2 py-3 text-sm w-[130px]">
-                  {patient.coverage_notes && patient.coverage_notes.trim() ? (
-                    <div className="group relative">
-                      <p className="text-xs text-gray-700 leading-tight whitespace-pre-wrap break-words">
-                        {patient.coverage_notes}
-                      </p>
-                    </div>
-                  ) : (
-                    <span className="text-gray-400 text-sm">-</span>
                   )}
                 </td>
                 <td className="px-2 py-3 text-sm text-center">

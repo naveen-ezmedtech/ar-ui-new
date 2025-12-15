@@ -259,6 +259,14 @@ export const PatientDetails = ({
                 <label className="text-sm font-medium text-gray-600">Phone Number</label>
                 <p className="text-gray-900 font-mono">{patient.phone_number || '-'}</p>
               </div>
+              <div>
+                <label className="text-sm font-medium text-gray-600">Invoice Number</label>
+                <p className="text-gray-900 font-mono">{patient.invoice_number || '-'}</p>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-600">Aging Bucket</label>
+                <p className="text-gray-900">{patient.aging_bucket || '-'}</p>
+              </div>
             </div>
           </section>
 
