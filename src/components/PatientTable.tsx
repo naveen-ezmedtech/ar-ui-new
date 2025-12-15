@@ -137,7 +137,7 @@ export const PatientTable = ({ patients, loading, onViewNotes, onCallPatient, on
     }).format(numAmount);
   };
 
-  // Format date string without timezone conversion (e.g., "2025-12-03" -> "Dec 3, 25")
+  // Format date string without timezone conversion (e.g., "2025-12-03" -> "Dec 3, 2025")
   const formatDateString = (dateString: string): string => {
     if (!dateString) return '';
     
@@ -152,9 +152,8 @@ export const PatientTable = ({ patients, loading, onViewNotes, onCallPatient, on
     if (isNaN(year) || isNaN(month) || isNaN(day)) return dateString;
     
     const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    const shortYear = year.toString().slice(-2);
     
-    return `${monthNames[month - 1]} ${day}, ${shortYear}`;
+    return `${monthNames[month - 1]} ${day}, ${year}`;
   };
 
   // Helper function to get full name
