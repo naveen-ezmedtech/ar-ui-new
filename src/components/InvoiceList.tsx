@@ -159,7 +159,6 @@ export const InvoiceList = ({ onFileSelect }: InvoiceListProps) => {
 
   const handleCallPatient = (patient: Patient) => {
     const phone = patient.phone_number && patient.phone_number.toLowerCase() !== 'nan' ? patient.phone_number : '';
-    const invoice = patient.invoice_number && patient.invoice_number.toLowerCase() !== 'nan' ? patient.invoice_number : '';
     
     if (!phone || phone.length < 10) {
       showMessage('error', 'Cannot make call: Phone number is missing or invalid (minimum 10 digits required)');
