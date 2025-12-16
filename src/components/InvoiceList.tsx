@@ -131,14 +131,10 @@ export const InvoiceList = ({ onFileSelect }: InvoiceListProps) => {
       return;
     }
     const phone = patient.phone_number && patient.phone_number.toLowerCase() !== 'nan' ? patient.phone_number : '';
-    const invoice = patient.invoice_number && patient.invoice_number.toLowerCase() !== 'nan' ? patient.invoice_number : '';
+    // invoice_number no longer required - removed from validation
     
-    if (!phone) {
+    if (!phone || phone.length < 10) {
       showMessage('error', 'Cannot view call history: Phone number is missing or invalid');
-      return;
-    }
-    if (!invoice) {
-      showMessage('error', 'Cannot view call history: Invoice number is missing');
       return;
     }
     setSelectedPatient(patient);
@@ -169,8 +165,14 @@ export const InvoiceList = ({ onFileSelect }: InvoiceListProps) => {
       showMessage('error', 'Cannot make call: Phone number is missing or invalid (minimum 10 digits required)');
       return;
     }
-    if (!invoice) {
-      showMessage('error', 'Cannot make call: Invoice number is missing (required for identification)');
+    // invoice_number no longer required - removed from validation
+    // Validate patient name and DOB instead
+    if (!patient.patient_first_name || !patient.patient_last_name) {
+      showMessage('error', 'Cannot make call: Patient name is missing (required for identification)');
+      return;
+    }
+    if (!patient.patient_dob) {
+      showMessage('error', 'Cannot make call: Patient date of birth is missing (required for identification)');
       return;
     }
     

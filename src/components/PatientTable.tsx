@@ -171,9 +171,9 @@ export const PatientTable = ({ patients, loading, onViewNotes, onCallPatient, on
   };
 
   // Check if patient has missing data
+  // Note: invoice_number is no longer required, so we don't check it
   const hasMissingData = (patient: Patient): boolean => {
     const phone = patient.phone_number && patient.phone_number.toLowerCase() !== 'nan' && patient.phone_number.length >= 10;
-    const invoice = patient.invoice_number && patient.invoice_number.toLowerCase() !== 'nan' && patient.invoice_number !== '';
     const firstName = patient.patient_first_name && patient.patient_first_name.toLowerCase() !== 'nan' && patient.patient_first_name !== '';
     const lastName = patient.patient_last_name && patient.patient_last_name.toLowerCase() !== 'nan' && patient.patient_last_name !== '';
     
@@ -181,7 +181,7 @@ export const PatientTable = ({ patients, loading, onViewNotes, onCallPatient, on
     const hasValidFirstName = firstName && !/^MISSING(_\d+)?$/i.test(patient.patient_first_name || '');
     const hasValidLastName = lastName && !/^MISSING(_\d+)?$/i.test(patient.patient_last_name || '');
     
-    return !phone || !invoice || !hasValidFirstName || !hasValidLastName;
+    return !phone || !hasValidFirstName || !hasValidLastName;
   };
 
   // Handle column header click for sorting
@@ -619,15 +619,6 @@ export const PatientTable = ({ patients, loading, onViewNotes, onCallPatient, on
                           <FiPhone size={12} />
                           Missing
                         </button>
-                      ) : !patient.invoice_number || patient.invoice_number.toLowerCase() === 'nan' ? (
-                        <button
-                          disabled
-                          className="inline-flex items-center gap-1 px-2 py-1 border border-red-300 text-red-500 rounded text-xs font-semibold cursor-not-allowed bg-red-50"
-                          title="Invoice number is missing"
-                        >
-                          <FiPhone size={12} />
-                          Missing
-                        </button>
                       ) : !patient.patient_first_name || !patient.patient_last_name || patient.patient_first_name.toLowerCase() === 'nan' || patient.patient_last_name.toLowerCase() === 'nan' ? (
                         <button
                           disabled
@@ -955,15 +946,6 @@ export const PatientTable = ({ patients, loading, onViewNotes, onCallPatient, on
                           disabled
                           className="inline-flex items-center gap-1 px-2 py-1 border border-red-300 text-red-500 rounded text-[10px] font-semibold cursor-not-allowed bg-red-50"
                           title="Phone number is missing or invalid"
-                        >
-                          <FiPhone size={10} />
-                          Missing
-                        </button>
-                      ) : !patient.invoice_number || patient.invoice_number.toLowerCase() === 'nan' ? (
-                        <button
-                          disabled
-                          className="inline-flex items-center gap-1 px-2 py-1 border border-red-300 text-red-500 rounded text-[10px] font-semibold cursor-not-allowed bg-red-50"
-                          title="Invoice number is missing"
                         >
                           <FiPhone size={10} />
                           Missing
