@@ -47,6 +47,9 @@ export interface Patient {
   coverage_notes?: string;
   coverage_effective_from?: string;
   coverage_effective_to?: string;
+  anticipated_cpt_code?: string;
+  preventive_services_covered?: string;
+  pcp_details?: string;
   comments?: string;
   amount_paid_stripe?: string;
   amount_paid_other?: string;

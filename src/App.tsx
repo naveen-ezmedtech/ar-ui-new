@@ -508,14 +508,20 @@ function App() {
 
   const handleCallPatient = (patient: Patient) => {
     const phone = patient.phone_number && patient.phone_number.toLowerCase() !== 'nan' ? patient.phone_number : '';
-    const invoice = patient.invoice_number && patient.invoice_number.toLowerCase() !== 'nan' ? patient.invoice_number : '';
     
     if (!phone || phone.length < 10) {
       showMessage('error', 'Cannot make call: Phone number is missing or invalid (minimum 10 digits required)');
       return;
     }
-    if (!invoice) {
-      showMessage('error', 'Cannot make call: Invoice number is missing (required for identification)');
+    
+    // Validate patient name and DOB instead of invoice_number
+    if (!patient.patient_first_name || !patient.patient_last_name) {
+      showMessage('error', 'Cannot make call: Patient name is missing (required for identification)');
+      return;
+    }
+    
+    if (!patient.patient_dob) {
+      showMessage('error', 'Cannot make call: Patient date of birth is missing (required for identification)');
       return;
     }
     

@@ -40,14 +40,13 @@ export const PatientDetails = ({
       
       // Check if we have enough information
       const hasPhoneNumber = phoneNumber && phoneNumber.trim() !== '' && phoneNumber.toLowerCase() !== 'nan';
-      const hasInvoiceNumber = invoiceNumber && invoiceNumber.trim() !== '' && invoiceNumber.toLowerCase() !== 'nan';
+      // invoice_number no longer required - removed from validation
       const hasFirstName = patientFirstName && patientFirstName.trim() !== '' && patientFirstName.toLowerCase() !== 'nan';
       const hasLastName = patientLastName && patientLastName.trim() !== '' && patientLastName.toLowerCase() !== 'nan';
       
-      if (!invoiceId && (!hasPhoneNumber || !hasInvoiceNumber || !hasFirstName || !hasLastName)) {
+      if (!invoiceId && (!hasPhoneNumber || !hasFirstName || !hasLastName)) {
         const missingFields = [];
         if (!hasPhoneNumber) missingFields.push('phone number');
-        if (!hasInvoiceNumber) missingFields.push('invoice number');
         if (!hasFirstName) missingFields.push('first name');
         if (!hasLastName) missingFields.push('last name');
         setError(`Insufficient information to load patient details. Missing: ${missingFields.join(', ')}`);
@@ -259,10 +258,7 @@ export const PatientDetails = ({
                 <label className="text-sm font-medium text-gray-600">Phone Number</label>
                 <p className="text-gray-900 font-mono">{patient.phone_number || '-'}</p>
               </div>
-              <div>
-                <label className="text-sm font-medium text-gray-600">Invoice Number</label>
-                <p className="text-gray-900 font-mono">{patient.invoice_number || '-'}</p>
-              </div>
+              {/* Invoice Number hidden from UI */}
               <div>
                 <label className="text-sm font-medium text-gray-600">Aging Bucket</label>
                 <p className="text-gray-900">{patient.aging_bucket || '-'}</p>
@@ -330,6 +326,32 @@ export const PatientDetails = ({
                         {patient.eligibility_status}
                       </span>
                     </p>
+                  </div>
+                )}
+                {patient.anticipated_cpt_code && (
+                  <div>
+                    <label className="text-sm font-medium text-gray-600">Anticipated CPT Code</label>
+                    <p className="text-gray-900 font-mono">{patient.anticipated_cpt_code}</p>
+                  </div>
+                )}
+                {patient.preventive_services_covered && (
+                  <div>
+                    <label className="text-sm font-medium text-gray-600">Preventive Services Covered</label>
+                    <p className="text-gray-900">
+                      <span className={`px-2 py-1 rounded text-xs ${
+                        patient.preventive_services_covered.toLowerCase() === 'yes' 
+                          ? 'bg-green-100 text-green-800' 
+                          : 'bg-gray-100 text-gray-800'
+                      }`}>
+                        {patient.preventive_services_covered}
+                      </span>
+                    </p>
+                  </div>
+                )}
+                {patient.pcp_details && (
+                  <div>
+                    <label className="text-sm font-medium text-gray-600">PCP Details (HMO Plan)</label>
+                    <p className="text-gray-900">{patient.pcp_details}</p>
                   </div>
                 )}
               </div>
