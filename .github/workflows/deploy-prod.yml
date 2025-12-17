@@ -15,23 +15,30 @@ jobs:
         env:
           WEBHOOK_SECRET: ${{ secrets.WEBHOOK_SECRET }}
         run: |
-          PAYLOAD=$(cat <<PAYLOAD_EOF
-          {
-            "ref": "refs/heads/main",
-            "repository": {
-              "name": "ar-ui",
-              "full_name": "ezmedtech-ai/ar-ui"
-            },
-            "pusher": {
-              "name": "github-actions"
-            },
-            "head_commit": {
-              "id": "${{ github.sha }}",
-              "message": "${{ github.event.head_commit.message }}"
-            }
-          }
-          PAYLOAD_EOF
-          )
+          # Escape commit message to handle newlines
+          COMMIT_MSG=$(echo '${{ github.event.head_commit.message }}' | jq -Rs .)
+          
+          PAYLOAD=$(jq -n \
+            --arg ref "refs/heads/main" \
+            --arg name "ar-ui" \
+            --arg full_name "ezmedtech-ai/ar-ui" \
+            --arg pusher "github-actions" \
+            --arg sha "${{ github.sha }}" \
+            --argjson message "$COMMIT_MSG" \
+            '{
+              ref: $ref,
+              repository: {
+                name: $name,
+                full_name: $full_name
+              },
+              pusher: {
+                name: $pusher
+              },
+              head_commit: {
+                id: $sha,
+                message: $message
+              }
+            }')
           
           SIGNATURE="sha256=$(echo -n "$PAYLOAD" | openssl dgst -sha256 -hmac "$WEBHOOK_SECRET" | sed 's/^.* //')"
           
