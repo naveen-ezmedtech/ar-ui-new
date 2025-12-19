@@ -333,6 +333,33 @@ export const PatientTable = ({ patients, loading, onViewNotes, onCallPatient, on
     return !phone || !hasValidFirstName || !hasValidLastName;
   };
 
+  // Check if patient is a "no call option" record
+  // A record is "no call option" if:
+  // - Patient name is "Unknown" OR
+  // - DOB is missing/unknown OR
+  // - Phone number is missing/unknown OR
+  // - Outstanding amount is 0 or missing
+  // Checkboxes should NOT be shown for "no call option" records
+  const isNoCallOption = (patient: Patient): boolean => {
+    const fullName = getFullName(patient);
+    const isNameUnknown = fullName === 'Unknown';
+    
+    const hasValidPhone = patient.phone_number && 
+      patient.phone_number.toLowerCase() !== 'nan' && 
+      patient.phone_number.length >= 10;
+    
+    const hasValidDOB = patient.patient_dob && 
+      patient.patient_dob.toLowerCase() !== 'nan' && 
+      patient.patient_dob.trim() !== '';
+    
+    const outstandingAmount = parseFloat(patient.outstanding_amount || '0');
+    const hasOutstanding = outstandingAmount > 0;
+    
+    // If all three (name, DOB, phone) are present AND outstanding amount is not 0, it's NOT a "no call option"
+    // Otherwise, it IS a "no call option"
+    return isNameUnknown || !hasValidPhone || !hasValidDOB || !hasOutstanding;
+  };
+
   // Handle patient selection
   const handlePatientToggle = (patientId: number | undefined) => {
     if (!onSelectionChange || !patientId) return;
@@ -350,8 +377,9 @@ export const PatientTable = ({ patients, loading, onViewNotes, onCallPatient, on
   const handleSelectAll = () => {
     if (!onSelectionChange) return;
     
+    // Only consider patients that are NOT "no call option" records
     const visiblePatientIds = patients
-      .filter(p => p.id !== undefined)
+      .filter(p => p.id !== undefined && !isNoCallOption(p))
       .map(p => p.id as number);
     
     const allSelected = visiblePatientIds.every(id => selectedPatientIds.has(id));
@@ -369,13 +397,13 @@ export const PatientTable = ({ patients, loading, onViewNotes, onCallPatient, on
     }
   };
 
-  // Check if all visible patients are selected
-  const allVisibleSelected = patients.length > 0 && patients
-    .filter(p => p.id !== undefined)
+  // Check if all visible patients (excluding "no call option" records) are selected
+  const selectablePatients = patients.filter(p => p.id !== undefined && !isNoCallOption(p));
+  const allVisibleSelected = selectablePatients.length > 0 && selectablePatients
     .every(p => selectedPatientIds.has(p.id as number));
 
   // Check if some (but not all) visible patients are selected
-  const someVisibleSelected = patients.some(p => p.id !== undefined && selectedPatientIds.has(p.id as number));
+  const someVisibleSelected = selectablePatients.some(p => selectedPatientIds.has(p.id as number));
 
   // Set indeterminate state on select all checkbox
   useEffect(() => {
@@ -572,7 +600,7 @@ export const PatientTable = ({ patients, loading, onViewNotes, onCallPatient, on
             {completePatients.map((patient, index) => (
               <tr key={`complete-${index}`} className={`hover:bg-gray-50 transition-colors ${selectedPatientIds.has(patient.id as number) ? 'bg-teal-50' : ''}`}>
                 <td className="px-2 py-3 text-center">
-                  {onSelectionChange && patient.id !== undefined && (
+                  {onSelectionChange && patient.id !== undefined && !isNoCallOption(patient) && (
                     <input
                       type="checkbox"
                       checked={selectedPatientIds.has(patient.id)}
@@ -940,7 +968,7 @@ export const PatientTable = ({ patients, loading, onViewNotes, onCallPatient, on
             {missingPatients.map((patient, index) => (
               <tr key={`missing-${index}`} className={`hover:bg-gray-50 transition-colors bg-red-50/30 ${selectedPatientIds.has(patient.id as number) ? 'bg-teal-50' : ''}`}>
                 <td className="px-2 py-3 text-center">
-                  {onSelectionChange && patient.id !== undefined && (
+                  {onSelectionChange && patient.id !== undefined && !isNoCallOption(patient) && (
                     <input
                       type="checkbox"
                       checked={selectedPatientIds.has(patient.id)}
