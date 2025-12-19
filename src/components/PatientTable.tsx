@@ -1,7 +1,7 @@
 import type { Patient } from '../types';
 import { FiEye, FiPhone, FiPhoneOff, FiFilter, FiEdit2, FiCheck, FiX } from 'react-icons/fi';
 import { parseNotes } from '../utils/notesParser';
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 
 interface PatientTableProps {
   patients: Patient[];
@@ -13,17 +13,21 @@ interface PatientTableProps {
   onViewDetails?: (patient: Patient) => void;
   onUpdatePatient?: (invoiceId: number, updates: Record<string, any>) => Promise<void>;
   activeCalls?: Map<string, { timestamp: number; conversationId?: string; callSid?: string; twilioStatus?: string }>;
+  selectedPatientIds?: Set<number>;
+  onSelectionChange?: (selectedIds: Set<number>) => void;
+  callingInProgress?: boolean;
 }
 
 type SortColumn = 'name' | 'date';
 type SortDirection = 'asc' | 'desc';
 type SortConfig = { column: SortColumn; direction: SortDirection };
 
-export const PatientTable = ({ patients, loading, onViewNotes, onCallPatient, onEndCall, onViewCallHistory, onViewDetails, onUpdatePatient, activeCalls = new Map() }: PatientTableProps) => {
+export const PatientTable = ({ patients, loading, onViewNotes, onCallPatient, onEndCall, onViewCallHistory, onViewDetails, onUpdatePatient, activeCalls = new Map(), selectedPatientIds = new Set(), onSelectionChange, callingInProgress = false }: PatientTableProps) => {
   const [sortConfigs, setSortConfigs] = useState<SortConfig[]>([]);
   const [editingCell, setEditingCell] = useState<{ patientId: number; field: string } | null>(null);
   const [editValue, setEditValue] = useState<string>('');
   const [updating, setUpdating] = useState(false);
+  const selectAllCheckboxRef = useRef<HTMLInputElement>(null);
 
   // Handle cell editing
   const handleStartEdit = (patient: Patient, field: string) => {
@@ -330,6 +334,57 @@ export const PatientTable = ({ patients, loading, onViewNotes, onCallPatient, on
     return !phone || !hasValidFirstName || !hasValidLastName;
   };
 
+  // Handle patient selection
+  const handlePatientToggle = (patientId: number | undefined) => {
+    if (!onSelectionChange || !patientId) return;
+    
+    const newSelection = new Set(selectedPatientIds);
+    if (newSelection.has(patientId)) {
+      newSelection.delete(patientId);
+    } else {
+      newSelection.add(patientId);
+    }
+    onSelectionChange(newSelection);
+  };
+
+  // Handle select all
+  const handleSelectAll = () => {
+    if (!onSelectionChange) return;
+    
+    const visiblePatientIds = patients
+      .filter(p => p.id !== undefined)
+      .map(p => p.id as number);
+    
+    const allSelected = visiblePatientIds.every(id => selectedPatientIds.has(id));
+    
+    if (allSelected) {
+      // Deselect all visible patients
+      const newSelection = new Set(selectedPatientIds);
+      visiblePatientIds.forEach(id => newSelection.delete(id));
+      onSelectionChange(newSelection);
+    } else {
+      // Select all visible patients
+      const newSelection = new Set(selectedPatientIds);
+      visiblePatientIds.forEach(id => newSelection.add(id));
+      onSelectionChange(newSelection);
+    }
+  };
+
+  // Check if all visible patients are selected
+  const allVisibleSelected = patients.length > 0 && patients
+    .filter(p => p.id !== undefined)
+    .every(p => selectedPatientIds.has(p.id as number));
+
+  // Check if some (but not all) visible patients are selected
+  const someVisibleSelected = patients.some(p => p.id !== undefined && selectedPatientIds.has(p.id as number));
+
+  // Set indeterminate state on select all checkbox
+  useEffect(() => {
+    if (selectAllCheckboxRef.current) {
+      selectAllCheckboxRef.current.indeterminate = someVisibleSelected && !allVisibleSelected;
+    }
+  }, [someVisibleSelected, allVisibleSelected]);
+
   // Handle column header click for sorting
   const handleSort = (column: SortColumn) => {
     setSortConfigs(prevConfigs => {
@@ -445,6 +500,18 @@ export const PatientTable = ({ patients, loading, onViewNotes, onCallPatient, on
         <table className="w-full text-sm table-auto">
           <thead className="border-b-2 border-teal-700 sticky top-0 bg-white z-10">
             <tr>
+              <th className="px-2 py-3 text-center text-xs font-semibold uppercase tracking-tight text-teal-700 w-[50px]">
+                {onSelectionChange && (
+                  <input
+                    type="checkbox"
+                    ref={selectAllCheckboxRef}
+                    checked={allVisibleSelected}
+                    onChange={handleSelectAll}
+                    className="w-4 h-4 text-teal-600 border-gray-300 rounded focus:ring-teal-500 cursor-pointer"
+                    title={allVisibleSelected ? "Deselect all" : someVisibleSelected ? "Some selected" : "Select all"}
+                  />
+                )}
+              </th>
               <th className="px-2 py-3 text-left text-xs font-semibold uppercase tracking-tight text-teal-700 w-[150px]">
                 <div className="flex items-center gap-1.5">
                   <span>Patient Name</span>
@@ -504,7 +571,18 @@ export const PatientTable = ({ patients, loading, onViewNotes, onCallPatient, on
           <tbody className="divide-y divide-gray-100">
             {/* Complete Records */}
             {completePatients.map((patient, index) => (
-              <tr key={`complete-${index}`} className="hover:bg-gray-50 transition-colors">
+              <tr key={`complete-${index}`} className={`hover:bg-gray-50 transition-colors ${selectedPatientIds.has(patient.id as number) ? 'bg-teal-50' : ''}`}>
+                <td className="px-2 py-3 text-center">
+                  {onSelectionChange && patient.id !== undefined && (
+                    <input
+                      type="checkbox"
+                      checked={selectedPatientIds.has(patient.id)}
+                      onChange={() => handlePatientToggle(patient.id)}
+                      className="w-4 h-4 text-teal-600 border-gray-300 rounded focus:ring-teal-500 cursor-pointer"
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                  )}
+                </td>
                 <EditableCell
                   patient={patient}
                   field="patient_name"
@@ -853,7 +931,7 @@ export const PatientTable = ({ patients, loading, onViewNotes, onCallPatient, on
             {/* Teal Separator Line */}
             {completePatients.length > 0 && missingPatients.length > 0 && (
               <tr>
-                <td colSpan={12} className="px-0 py-0">
+                <td colSpan={13} className="px-0 py-0">
                   <div className="h-px bg-teal-700 w-full mx-auto"></div>
                 </td>
               </tr>
@@ -861,7 +939,18 @@ export const PatientTable = ({ patients, loading, onViewNotes, onCallPatient, on
 
             {/* Missing Records */}
             {missingPatients.map((patient, index) => (
-              <tr key={`missing-${index}`} className="hover:bg-gray-50 transition-colors bg-red-50/30">
+              <tr key={`missing-${index}`} className={`hover:bg-gray-50 transition-colors bg-red-50/30 ${selectedPatientIds.has(patient.id as number) ? 'bg-teal-50' : ''}`}>
+                <td className="px-2 py-3 text-center">
+                  {onSelectionChange && patient.id !== undefined && (
+                    <input
+                      type="checkbox"
+                      checked={selectedPatientIds.has(patient.id)}
+                      onChange={() => handlePatientToggle(patient.id)}
+                      className="w-4 h-4 text-teal-600 border-gray-300 rounded focus:ring-teal-500 cursor-pointer"
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                  )}
+                </td>
                 <EditableCell
                   patient={patient}
                   field="patient_name"

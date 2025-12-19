@@ -52,6 +52,7 @@ function App() {
   const [showPatientDetails, setShowPatientDetails] = useState(false);
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   const [patientToCall, setPatientToCall] = useState<Patient | null>(null);
+  const [batchCallInvoiceIds, setBatchCallInvoiceIds] = useState<number[] | undefined>(undefined);
   const [activeCalls, setActiveCalls] = useState<Map<string, { timestamp: number; conversationId?: string; callSid?: string; twilioStatus?: string }>>(new Map());
   const activeCallsRef = useRef<Map<string, { timestamp: number; conversationId?: string; callSid?: string; twilioStatus?: string }>>(new Map());
   const pollingIntervalsRef = useRef<Map<string, number>>(new Map()); // Track polling intervals per call
@@ -264,12 +265,8 @@ function App() {
     }
   };
 
-  const handleBatchCall = () => {
-    setShowConfirmModal(true);
-  };
-
-  const confirmBatchCall = async () => {
-    setShowConfirmModal(false);
+  // Shared batch call execution logic
+  const executeBatchCall = async (invoiceIds?: number[]) => {
     setCallingInProgress(true);
     localStorage.setItem('callingInProgress', 'true');
     showMessage('info', 'Starting batch calls... This may take a few minutes.');
@@ -279,13 +276,22 @@ function App() {
       let filenameToUse: string | undefined = undefined;
       let uploadIdToUse: number | undefined = undefined;
       
-      if (currentUploadId) {
-        uploadIdToUse = currentUploadId;
-      } else if (selectedFile) {
-        filenameToUse = selectedFile;
+      // If invoiceIds are provided, use them directly (don't use uploadId/filename filters)
+      if (invoiceIds && invoiceIds.length > 0) {
+        uploadIdToUse = undefined;
+        filenameToUse = undefined;
+      } else {
+        if (currentUploadId) {
+          uploadIdToUse = currentUploadId;
+        } else if (selectedFile) {
+          filenameToUse = selectedFile;
+        }
       }
       
-      const response = await triggerBatchCall(filenameToUse, 0.01, undefined, uploadIdToUse);
+      const response = await triggerBatchCall(filenameToUse, 0.01, undefined, uploadIdToUse, invoiceIds);
+      
+      // Clear invoiceIds after use
+      setBatchCallInvoiceIds(undefined);
       
       if (response.results?.total_attempted === 0) {
         let message = 'No patients were eligible for calling.';
@@ -328,7 +334,6 @@ function App() {
                 callSid: call.call_sid
               });
               
-              // Collect call info for parallel polling
               if (activeSection === 'upload') {
                 batchCallSids.push({ callKey, callSid: call.call_sid });
               }
@@ -344,13 +349,11 @@ function App() {
         setActiveCalls(newActiveCalls);
         activeCallsRef.current = newActiveCalls;
         
-        // Set up parallel polling for all batch calls (single shared interval)
         if (activeSection === 'upload' && batchCallSids.length > 0) {
           let pollCount = 0;
-          const maxPolls = 600; // Safety limit: 30 minutes (600 × 3s)
+          const maxPolls = 600;
           
           const sharedBatchPollingInterval = setInterval(async () => {
-            // Safety check: stop after 30 minutes
             if (pollCount >= maxPolls) {
               console.log('⚠️ Safety limit reached for batch calls - stopping polling');
               clearInterval(sharedBatchPollingInterval);
@@ -360,135 +363,85 @@ function App() {
             
             pollCount++;
             
-            // Get current active calls
             const currentActiveCalls = activeCallsRef.current;
-            if (currentActiveCalls.size === 0) {
-              console.log('✅ No active calls - stopping batch polling');
+            const stillActive = Array.from(currentActiveCalls.entries()).filter(([, callData]) => {
+              return callData.callSid && batchCallSids.some(bc => bc.callSid === callData.callSid);
+            });
+            
+            if (stillActive.length === 0) {
               clearInterval(sharedBatchPollingInterval);
               pollingIntervalsRef.current.delete('batch_polling');
+              setCallingInProgress(false);
+              localStorage.removeItem('callingInProgress');
               return;
             }
             
-            // Collect all active call SIDs that need checking
-            const callsToCheck: Array<{ callKey: string; callSid: string }> = [];
-            currentActiveCalls.forEach((callData, callKey) => {
-              if (callData.callSid) {
-                // Only check calls that haven't completed yet
-                if (!callData.twilioStatus || !['completed', 'busy', 'failed', 'no-answer', 'canceled'].includes(callData.twilioStatus)) {
-                  callsToCheck.push({ callKey, callSid: callData.callSid });
+            const pollPromises = stillActive.map(async ([callKey, callData]) => {
+              if (!callData.callSid) return;
+              
+              try {
+                const statusResponse = await getCallStatus(callData.callSid);
+                if (statusResponse.should_stop_polling) {
+                  currentActiveCalls.delete(callKey);
+                  activeCallsRef.current = currentActiveCalls;
+                  setActiveCalls(new Map(currentActiveCalls));
                 }
+              } catch (error) {
+                console.error(`Error polling call status for ${callData.callSid}:`, error);
               }
             });
             
-            if (callsToCheck.length === 0) {
-              // All calls are complete - refresh once and stop polling
-              console.log('✅ All batch calls complete - refreshing patient data and stopping polling');
+            await Promise.all(pollPromises);
+            
+            const remainingActive = Array.from(currentActiveCalls.entries()).filter(([, callData]) => {
+              return callData.callSid && batchCallSids.some(bc => bc.callSid === callData.callSid);
+            });
+            
+            if (remainingActive.length === 0) {
               clearInterval(sharedBatchPollingInterval);
               pollingIntervalsRef.current.delete('batch_polling');
-              
-              // Refresh patient data once silently
-              try {
-                const currentUploadId = getSelectedUploadId();
-                await loadPatientData(currentUploadId, true);
-              } catch (error) {
-                console.error('Failed to refresh patient data:', error);
-              }
-              return;
+              setCallingInProgress(false);
+              localStorage.removeItem('callingInProgress');
             }
-            
-            // Check all calls in parallel using Promise.all
-            try {
-              const statusPromises = callsToCheck.map(({ callSid }) => getCallStatus(callSid));
-              const statusResponses = await Promise.all(statusPromises);
-              
-              // Update activeCalls with latest statuses and remove completed ones
-              let allComplete = false;
-              setActiveCalls(prev => {
-                const newMap = new Map(prev);
-                let hasChanges = false;
-                
-                statusResponses.forEach((statusResponse, index) => {
-                  const { callKey } = callsToCheck[index];
-                  const existingCall = newMap.get(callKey);
-                  
-                  if (existingCall) {
-                    const twilioStatus = statusResponse.twilio?.status;
-                    const isCallComplete = twilioStatus && ['completed', 'busy', 'failed', 'no-answer', 'canceled'].includes(twilioStatus);
-                    
-                    if (isCallComplete) {
-                      console.log(`✅ Batch call ${callKey} ${twilioStatus} - removing from active calls`);
-                      newMap.delete(callKey);
-                      hasChanges = true;
-                    } else {
-                      // Update status for calls still in progress
-                      newMap.set(callKey, {
-                        ...existingCall,
-                        twilioStatus: twilioStatus
-                      });
-                      hasChanges = true;
-                    }
-                  }
-                });
-                
-                // Update ref with new state
-                activeCallsRef.current = newMap;
-                
-                // Check if all calls are now complete
-                if (newMap.size === 0) {
-                  allComplete = true;
-                }
-                
-                return hasChanges ? newMap : prev;
-              });
-              
-              // If all calls are complete, refresh and stop polling immediately
-              if (allComplete) {
-                console.log('✅ All batch calls complete - refreshing patient data and stopping polling');
-                clearInterval(sharedBatchPollingInterval);
-                pollingIntervalsRef.current.delete('batch_polling');
-                
-                // Refresh patient data once silently
-                try {
-                  const currentUploadId = getSelectedUploadId();
-                  await loadPatientData(currentUploadId, true);
-                } catch (error) {
-                  console.error('Failed to refresh patient data:', error);
-                }
-                return; // Stop this polling cycle
-              }
-            } catch (error) {
-              console.error('Failed to check batch call statuses:', error);
-            }
-          }, 3000); // Poll every 3 seconds
+          }, 3000);
           
-          // Store the shared interval reference
           pollingIntervalsRef.current.set('batch_polling', sharedBatchPollingInterval);
+        } else {
+          setCallingInProgress(false);
+          localStorage.removeItem('callingInProgress');
         }
-      }
-      
-      showMessage('success', response.message);
-      
-      // Reset callingInProgress - batch calls have been initiated, button should go back to normal
-      // Individual calls will be tracked via activeCalls and their polling intervals
-      setCallingInProgress(false);
-      localStorage.removeItem('callingInProgress');
-      
-      if (activeSection === 'upload') {
-        const currentUploadId = getSelectedUploadId();
-        await loadPatientData(currentUploadId, true);
-      }
-      
-      const refreshDashboard = (window as { refreshDashboard?: () => void }).refreshDashboard;
-      if (refreshDashboard) {
-        setTimeout(() => refreshDashboard(), 2000);
+        
+        showMessage('success', `Successfully initiated ${response.results?.total_attempted || 0} call(s).`);
+      } else {
+        showMessage('error', 'Failed to initiate batch calls. Please try again.');
+        setCallingInProgress(false);
+        localStorage.removeItem('callingInProgress');
       }
     } catch (error) {
       const err = error as { response?: { data?: { detail?: string } } };
-      console.error('Batch call failed:', error);
-      showMessage('error', err.response?.data?.detail || 'Batch call failed');
+      console.error('Batch call error:', error);
+      showMessage('error', err.response?.data?.detail || 'Failed to initiate batch calls. Please try again.');
       setCallingInProgress(false);
       localStorage.removeItem('callingInProgress');
+      setBatchCallInvoiceIds(undefined);
     }
+  };
+
+  const handleBatchCall = (invoiceIds?: number[]) => {
+    setBatchCallInvoiceIds(invoiceIds);
+    // If invoiceIds are provided, skip the confirmation modal (already shown in UploadSection)
+    // Otherwise, show the confirmation modal for regular batch calls
+    if (invoiceIds && invoiceIds.length > 0) {
+      // Directly execute batch call without showing another modal
+      executeBatchCall(invoiceIds);
+    } else {
+      setShowConfirmModal(true);
+    }
+  };
+
+  const confirmBatchCall = async () => {
+    setShowConfirmModal(false);
+    await executeBatchCall(batchCallInvoiceIds);
   };
 
   const handleViewNotes = (patient: Patient) => {
@@ -849,9 +802,14 @@ function App() {
         <ConfirmModal
           isOpen={showConfirmModal}
           title="Start Batch Calls"
-          message={`You are about to initiate calls to ${patients.length} patient${patients.length !== 1 ? 's' : ''}. Calls will be made automatically and summaries will be generated after each call completes.`}
+          message={batchCallInvoiceIds && batchCallInvoiceIds.length > 0
+            ? `You are about to initiate calls to ${batchCallInvoiceIds.length} selected patient${batchCallInvoiceIds.length !== 1 ? 's' : ''}. Calls will be made automatically and summaries will be generated after each call completes. Patients with the same phone number will be grouped into a single call.`
+            : `You are about to initiate calls to ${patients.length} patient${patients.length !== 1 ? 's' : ''}. Calls will be made automatically and summaries will be generated after each call completes.`}
           onConfirm={confirmBatchCall}
-          onCancel={() => setShowConfirmModal(false)}
+          onCancel={() => {
+            setShowConfirmModal(false);
+            setBatchCallInvoiceIds(undefined);
+          }}
         />
 
         <ConfirmModal

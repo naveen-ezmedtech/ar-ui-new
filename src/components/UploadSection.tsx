@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { FileUpload, FileSelectorDropdown, BatchCallButton, DownloadButton, PatientTable, ConfirmModal } from './';
 import type { Patient } from '../types';
-import { FiSearch, FiX, FiChevronDown, FiCheck, FiDownload } from 'react-icons/fi';
+import { FiSearch, FiX, FiChevronDown, FiCheck, FiDownload, FiPhone } from 'react-icons/fi';
 import { exportARTestingCSV, updatePatient, exportSelectedPatients } from '../services/api';
 
 interface FileOption {
@@ -57,6 +57,8 @@ export const UploadSection = ({
   const [callStatusFilter, setCallStatusFilter] = useState<CallStatusFilter>('all');
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [showBatchCallModal, setShowBatchCallModal] = useState(false);
+  const [selectedPatientIds, setSelectedPatientIds] = useState<Set<number>>(new Set());
+  const [showSelectedCallModal, setShowSelectedCallModal] = useState(false);
   const [downloadingARTesting, setDownloadingARTesting] = useState(false);
   const [downloadingSelected, setDownloadingSelected] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -471,8 +473,33 @@ export const UploadSection = ({
                 </span>
               </div>
               
+              {/* Initiate Call Button for Selected Patients */}
+              {selectedPatientIds.size > 0 && (
+                <button
+                  onClick={() => setShowSelectedCallModal(true)}
+                  disabled={callingInProgress}
+                  className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
+                    callingInProgress
+                      ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                      : 'bg-teal-600 text-white hover:bg-teal-700 hover:shadow-md'
+                  }`}
+                >
+                  {callingInProgress ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      <span>Calling...</span>
+                    </>
+                  ) : (
+                    <>
+                      <FiPhone className="w-4 h-4" />
+                      <span>Initiate Call ({selectedPatientIds.size})</span>
+                    </>
+                  )}
+                </button>
+              )}
+              
               {/* Batch Call Button for All or Filtered Results */}
-              {filteredPatients.length > 0 && (callStatusFilter !== 'all' || searchTerm.trim()) && (
+              {filteredPatients.length > 0 && (callStatusFilter !== 'all' || searchTerm.trim()) && selectedPatientIds.size === 0 && (
                 <button
                   onClick={() => setShowBatchCallModal(true)}
                   disabled={callingInProgress}
@@ -512,8 +539,28 @@ export const UploadSection = ({
           onViewDetails={onViewDetails}
           onUpdatePatient={handleUpdatePatient}
           activeCalls={activeCalls}
+          selectedPatientIds={selectedPatientIds}
+          onSelectionChange={setSelectedPatientIds}
+          callingInProgress={callingInProgress}
         />
       </div>
+
+      {/* Selected Patients Call Confirmation Modal */}
+      <ConfirmModal
+        isOpen={showSelectedCallModal}
+        title="Initiate Calls to Selected Patients"
+        message={`You are about to initiate calls to ${selectedPatientIds.size} selected patient${selectedPatientIds.size !== 1 ? 's' : ''}. Calls will be made automatically and summaries will be generated after each call completes. Patients with the same phone number will be grouped into a single call.`}
+        onConfirm={() => {
+          setShowSelectedCallModal(false);
+          // Capture invoice IDs before clearing selection to prevent count changes
+          const selectedInvoiceIds = Array.from(selectedPatientIds);
+          // Clear selection immediately to prevent UI issues
+          setSelectedPatientIds(new Set());
+          // Pass selected patient invoice IDs (this will skip App.tsx modal)
+          onBatchCall(selectedInvoiceIds.length > 0 ? selectedInvoiceIds : undefined);
+        }}
+        onCancel={() => setShowSelectedCallModal(false)}
+      />
 
       {/* Batch Call Confirmation Modal */}
       <ConfirmModal
