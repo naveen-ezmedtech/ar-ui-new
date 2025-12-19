@@ -15,14 +15,13 @@ interface PatientTableProps {
   activeCalls?: Map<string, { timestamp: number; conversationId?: string; callSid?: string; twilioStatus?: string }>;
   selectedPatientIds?: Set<number>;
   onSelectionChange?: (selectedIds: Set<number>) => void;
-  callingInProgress?: boolean;
 }
 
 type SortColumn = 'name' | 'date';
 type SortDirection = 'asc' | 'desc';
 type SortConfig = { column: SortColumn; direction: SortDirection };
 
-export const PatientTable = ({ patients, loading, onViewNotes, onCallPatient, onEndCall, onViewCallHistory, onViewDetails, onUpdatePatient, activeCalls = new Map(), selectedPatientIds = new Set(), onSelectionChange, callingInProgress = false }: PatientTableProps) => {
+export const PatientTable = ({ patients, loading, onViewNotes, onCallPatient, onEndCall, onViewCallHistory, onViewDetails, onUpdatePatient, activeCalls = new Map(), selectedPatientIds = new Set(), onSelectionChange }: PatientTableProps) => {
   const [sortConfigs, setSortConfigs] = useState<SortConfig[]>([]);
   const [editingCell, setEditingCell] = useState<{ patientId: number; field: string } | null>(null);
   const [editValue, setEditValue] = useState<string>('');

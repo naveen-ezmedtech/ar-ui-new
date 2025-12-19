@@ -541,7 +541,6 @@ export const UploadSection = ({
           activeCalls={activeCalls}
           selectedPatientIds={selectedPatientIds}
           onSelectionChange={setSelectedPatientIds}
-          callingInProgress={callingInProgress}
         />
       </div>
 
