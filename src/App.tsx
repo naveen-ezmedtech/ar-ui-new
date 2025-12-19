@@ -494,7 +494,7 @@ function App() {
 
     try {
       const fullName = getPatientFullName(patient);
-      showMessage('info', `Calling ${fullName} at ${patient.phone_number}...`);
+      showToast('info', `Calling ${fullName} at ${patient.phone_number}...`);
       const response = await callPatient(
         patient.phone_number,
         patient.invoice_number,
@@ -641,15 +641,14 @@ function App() {
 
     try {
       const fullName = getPatientFullName(patient);
-      showMessage('info', `Ending call with ${fullName}...`);
+      showToast('info', `Ending call with ${fullName}...`);
       
       const response = await endCall(activeCall.conversationId);
       
       if (response.success) {
         console.log('✅ Manual disconnect - will poll for 5 more seconds to catch post-call webhook');
         
-        showMessage('success', `Call ended with ${fullName}`);
-        showToast('success', `Call disconnected successfully`);
+        showToast('success', `Call ended with ${fullName}`);
         
         // Keep polling for 5 more seconds to catch the post-call webhook with summary
         setTimeout(() => {
@@ -683,14 +682,12 @@ function App() {
           await loadPatientData(currentUploadId, true);
         }
       } else {
-        showMessage('error', 'Failed to end call');
-        showToast('error', 'Failed to disconnect call');
+        showToast('error', 'Failed to end call');
       }
     } catch (error) {
       const err = error as { response?: { data?: { detail?: string } } };
       console.error('End call failed:', error);
-      showMessage('error', err.response?.data?.detail || 'Failed to end call');
-      showToast('error', err.response?.data?.detail || 'Failed to disconnect call');
+      showToast('error', err.response?.data?.detail || 'Failed to end call');
     }
   };
 

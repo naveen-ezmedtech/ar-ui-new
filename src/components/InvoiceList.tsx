@@ -8,6 +8,7 @@ import { NotesModal } from './NotesModal';
 import { PatientDetails } from './PatientDetails';
 import { ConfirmModal } from './ConfirmModal';
 import { MessageAlert } from './MessageAlert';
+import { useToast, ToastContainer } from './Toast';
 import { BsFiletypePdf, BsFiletypeCsv, BsFileEarmarkExcel } from 'react-icons/bs';
 
 interface FileUpload {
@@ -29,6 +30,7 @@ export const InvoiceList = ({ onFileSelect }: InvoiceListProps) => {
   const [loading, setLoading] = useState(true);
   const [selectedUploadId, setSelectedUploadId] = useState<number | null>(null);
   const [patients, setPatients] = useState<Patient[]>([]);
+  const { toasts, showToast, removeToast } = useToast();
   
   const getFileIcon = (filename: string) => {
     const name = filename.toLowerCase();
@@ -227,7 +229,7 @@ export const InvoiceList = ({ onFileSelect }: InvoiceListProps) => {
       };
       
       const fullName = getFullName(patient);
-      showMessage('info', `Ending call with ${fullName}...`);
+      showToast('info', `Ending call with ${fullName}...`);
       
       const response = await endCall(activeCall.conversationId);
       
@@ -239,7 +241,7 @@ export const InvoiceList = ({ onFileSelect }: InvoiceListProps) => {
           return newMap;
         });
         
-        showMessage('success', `Call ended with ${fullName}`);
+        showToast('success', `Call ended with ${fullName}`);
         
         // Refresh patient data to update call status
         if (selectedUploadId) {
@@ -247,12 +249,12 @@ export const InvoiceList = ({ onFileSelect }: InvoiceListProps) => {
           setPatients(response.patients || []);
         }
       } else {
-        showMessage('error', 'Failed to end call');
+        showToast('error', 'Failed to end call');
       }
     } catch (error) {
       console.error('End call failed:', error);
       const errorMessage = error instanceof Error ? error.message : 'Failed to end call';
-      showMessage('error', errorMessage);
+      showToast('error', errorMessage);
     }
   };
 
@@ -282,7 +284,7 @@ export const InvoiceList = ({ onFileSelect }: InvoiceListProps) => {
       };
       
       const fullName = getFullName(patientToCall);
-      showMessage('info', `Calling ${fullName}...`);
+      showToast('info', `Calling ${fullName} at ${phoneNumber}...`);
       
       const result = await callPatient(
         phoneNumber, 
@@ -646,6 +648,7 @@ export const InvoiceList = ({ onFileSelect }: InvoiceListProps) => {
           setSelectedPatient(null);
         }}
       />
+      <ToastContainer toasts={toasts} onRemove={removeToast} />
     </>
   );
 };

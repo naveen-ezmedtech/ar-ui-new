@@ -38,24 +38,28 @@ export const CallHistoryModal = ({ isOpen, patientFirstName, patientLastName, ph
   const [error, setError] = useState<string | null>(null);
 
   const loadCallHistory = useCallback(async () => {
-    if (!phoneNumber || !invoiceNumber) {
+    if (!phoneNumber) {
       return;
     }
     
     setLoading(true);
     setError(null);
     try {
-      const data = await getCallHistory(phoneNumber, invoiceNumber, patientFirstName, patientLastName, patientDob);
+      const data = await getCallHistory(phoneNumber, invoiceNumber || undefined, patientFirstName, patientLastName, patientDob);
       // Filter calls on frontend to ensure we only show calls for this specific phone + invoice combination
       // This prevents showing calls for other patients with same phone number or name
       const filteredCalls = (data.calls || []).filter(call => {
         const callPhone = (call.phone_number || '').trim();
         const callInvoice = (call.invoice_number || '').trim();
         const targetPhone = phoneNumber.trim();
-        const targetInvoice = invoiceNumber.trim();
+        const targetInvoice = (invoiceNumber || '').trim();
         
-        // Must match both phone number AND invoice number exactly
-        return callPhone === targetPhone && callInvoice === targetInvoice;
+        // Must match phone number exactly
+        // If invoice number is provided, it must also match
+        const phoneMatches = callPhone === targetPhone;
+        const invoiceMatches = !targetInvoice || callInvoice === targetInvoice;
+        
+        return phoneMatches && invoiceMatches;
       });
       setCalls(filteredCalls);
     } catch (err) {
@@ -65,10 +69,10 @@ export const CallHistoryModal = ({ isOpen, patientFirstName, patientLastName, ph
     } finally {
       setLoading(false);
     }
-  }, [phoneNumber, invoiceNumber]);
+  }, [phoneNumber, invoiceNumber, patientFirstName, patientLastName, patientDob]);
 
   useEffect(() => {
-    if (isOpen && phoneNumber && invoiceNumber) {
+    if (isOpen && phoneNumber) {
       // Reset state when modal opens
       setCalls([]);
       setError(null);
@@ -78,7 +82,7 @@ export const CallHistoryModal = ({ isOpen, patientFirstName, patientLastName, ph
       setCalls([]);
       setError(null);
     }
-  }, [isOpen, phoneNumber, invoiceNumber, patientName, loadCallHistory]);
+  }, [isOpen, phoneNumber, loadCallHistory]);
 
 
   if (!isOpen) return null;
@@ -95,7 +99,9 @@ export const CallHistoryModal = ({ isOpen, patientFirstName, patientLastName, ph
               <div>
                 <h3 className="text-lg font-bold text-gray-900">Call History</h3>
                 <p className="text-sm text-gray-600">{patientName}</p>
-                <p className="text-xs text-gray-500">Invoice: {invoiceNumber} | Phone: {phoneNumber}</p>
+                <p className="text-xs text-gray-500">
+                  {invoiceNumber ? `Invoice: ${invoiceNumber} | ` : ''}Phone: {phoneNumber}
+                </p>
               </div>
             </div>
             <button

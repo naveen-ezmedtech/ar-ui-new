@@ -477,11 +477,11 @@ export const Dashboard = () => {
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mt-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Calls</h3>
           <div className="space-y-3 max-h-96 overflow-y-auto pr-2">
-            {stats.recent_calls_list.slice(0, 9).map((call, index) => {
-              // Filter out "value_or_empty" and show N/A instead
-              const invoiceNumber = call.invoice_number && call.invoice_number !== 'value_or_empty' 
+            {stats.recent_calls_list.map((call, index) => {
+              // Filter out "value_or_empty" - only show invoice if it has a valid value
+              const invoiceNumber = call.invoice_number && call.invoice_number !== 'value_or_empty' && call.invoice_number.trim() !== ''
                 ? call.invoice_number 
-                : 'N/A';
+                : null;
               
               return (
                 <div key={index} className="flex items-start justify-between p-3 bg-gray-50 rounded-lg border border-gray-200">
@@ -498,7 +498,9 @@ export const Dashboard = () => {
                         {call.call_status}
                       </span>
                     </div>
+                    {invoiceNumber && (
                     <p className="text-xs text-gray-600 mb-1 truncate">Invoice: {invoiceNumber}</p>
+                    )}
                     <p className="text-xs text-gray-600 mb-1 truncate">Phone: {call.phone_number}</p>
                     {call.notes && (
                       <p className="text-xs text-gray-500 italic mt-1 whitespace-pre-wrap break-words">{call.notes}</p>

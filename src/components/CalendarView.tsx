@@ -307,10 +307,10 @@ export const CalendarView = ({ onDateSelect }: CalendarViewProps) => {
                 <div className="max-h-96 overflow-y-auto pr-2">
                   <div className="space-y-2">
                     {selectedDateCalls.map((call, index) => {
-                      // Filter out "value_or_empty" and show N/A instead
-                      const invoiceNumber = call.invoice_number && call.invoice_number !== 'value_or_empty' 
+                      // Filter out "value_or_empty" - only show invoice if it has a valid value
+                      const invoiceNumber = call.invoice_number && call.invoice_number !== 'value_or_empty' && call.invoice_number.trim() !== ''
                         ? call.invoice_number 
-                        : 'N/A';
+                        : null;
                       
                       return (
                         <div
@@ -322,10 +322,14 @@ export const CalendarView = ({ onDateSelect }: CalendarViewProps) => {
                               <p className="text-xs font-semibold text-gray-900 truncate">
                                 {`${call.patient_first_name || ''} ${call.patient_last_name || ''}`.trim() || 'Unknown'}
                               </p>
+                              {invoiceNumber && (
+                                <>
                               <span className="text-xs text-gray-500">•</span>
                               <span className="text-xs text-gray-600 truncate">
                                 {invoiceNumber}
                               </span>
+                                </>
+                              )}
                             </div>
                             <div className="flex items-center gap-2 text-xs text-gray-600">
                               <div className="flex items-center gap-1">
