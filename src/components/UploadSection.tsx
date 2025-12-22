@@ -319,7 +319,7 @@ export const UploadSection = ({
             
             <div className="flex gap-2 flex-wrap">
               <BatchCallButton 
-                onClick={onBatchCall}
+                onClick={() => onBatchCall()}
                 disabled={patients.length === 0 || callingInProgress}
                 loading={callingInProgress}
               />
