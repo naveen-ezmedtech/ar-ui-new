@@ -72,9 +72,9 @@ export const SSOLogin = ({ onLogin }: SSOLoginProps) => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#d4d7e9] liquid-glass-environment px-4 py-8">
+    <div className="min-h-screen flex items-center justify-center bg-[#d4d7e9] liquid-glass-environment px-3 sm:px-4 md:px-6 py-6 sm:py-8 md:py-10">
       <div className="w-full max-w-md mx-auto">
-        <div className="liquid-glass p-8 sm:p-10 md:p-12 rounded-2xl space-y-6 sm:space-y-8">
+        <div className="liquid-glass p-4 sm:p-6 md:p-8 lg:p-10 xl:p-12 rounded-2xl space-y-4 sm:space-y-6 md:space-y-8">
           {/* Logo */}
           <div className="text-center">
             <div className="flex items-center justify-center gap-2 mb-4">
@@ -87,7 +87,7 @@ export const SSOLogin = ({ onLogin }: SSOLoginProps) => {
 
           {/* Loading State */}
           {loading && (
-            <div className="text-center py-8">
+            <div className="text-center py-6 sm:py-8 md:py-10">
               <div className="flex justify-center mb-4">
                 <Loader2 className="animate-spin text-primary" size={48} />
               </div>

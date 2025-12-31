@@ -10,8 +10,8 @@ export const SessionExpiredModal = ({ isOpen, onLogin }: SessionExpiredModalProp
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center backdrop-blur-md bg-black/30">
-      <div className="liquid-glass-table p-8 max-w-md w-full mx-4">
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center backdrop-blur-md bg-black/30 p-3 sm:p-4 md:p-6">
+      <div className="liquid-glass-table p-4 sm:p-6 md:p-8 max-w-md w-full mx-auto">
         <div className="flex flex-col items-center text-center space-y-6">
           {/* Logo */}
           {/* <div className="flex items-center gap-2">

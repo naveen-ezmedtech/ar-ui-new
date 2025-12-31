@@ -961,7 +961,7 @@ function App() {
                         <Route 
                           path="/dashboard" 
                           element={
-                            <div className="mb-4 sm:mb-8 space-y-4 sm:space-y-6 px-4 lg:px-6">
+                            <div className="space-y-3 sm:space-y-4 md:space-y-6 px-3 sm:px-4 md:px-5 lg:px-6 py-1 sm:py-2">
                               <Dashboard />
                             </div>
                           } 
@@ -969,7 +969,7 @@ function App() {
                         <Route 
                           path="/invoice-list" 
                           element={
-                            <div className="mb-8 px-4 lg:px-6">
+                            <div className="px-3 sm:px-4 md:px-5 lg:px-6 py-1 sm:py-2">
                               <InvoiceList onFileSelect={() => { }} />
                             </div>
                           } 
@@ -977,7 +977,7 @@ function App() {
                         <Route 
                           path="/patients" 
                           element={
-                            <div className="mb-8 px-4 lg:px-6">
+                            <div className="px-3 sm:px-4 md:px-5 lg:px-6 py-1 sm:py-2">
                               <PatientsTab
                                 onViewNotes={handleViewNotes}
                                 onViewCallHistory={handleViewCallHistory}
@@ -990,7 +990,7 @@ function App() {
                         <Route 
                           path="/ar-operations" 
                           element={
-                            <div className="px-4 lg:px-6">
+                            <div className="px-3 sm:px-4 md:px-5 lg:px-6 py-1 sm:py-2">
                               <UploadSection
                                 availableFiles={availableFiles}
                                 selectedUploadId={selectedUploadId}

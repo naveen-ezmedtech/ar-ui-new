@@ -422,7 +422,7 @@ export const InvoiceList = ({ onFileSelect }: InvoiceListProps) => {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="text-center p-8">
+        <div className="text-center p-4 sm:p-6 md:p-8">
           <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
           <div className="text-sm text-foreground">Loading invoices...</div>
         </div>
@@ -453,7 +453,7 @@ export const InvoiceList = ({ onFileSelect }: InvoiceListProps) => {
             </button>
             
             {/* File Info Card */}
-            <div className="liquid-glass-strong rounded-2xl p-6" style={disableAnimations ? { transition: 'none' } : {}}>
+            <div className="liquid-glass-strong rounded-2xl p-4 sm:p-5 md:p-6" style={disableAnimations ? { transition: 'none' } : {}}>
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1">
                   <div className="flex items-center gap-3 mb-3">
@@ -495,7 +495,7 @@ export const InvoiceList = ({ onFileSelect }: InvoiceListProps) => {
 
           {loadingPatients ? (
             <div className="flex items-center justify-center h-64">
-              <div className="text-center liquid-glass-strong rounded-2xl p-8">
+              <div className="text-center liquid-glass-strong rounded-2xl p-4 sm:p-6 md:p-8">
                 <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
                 <div className="text-sm text-foreground">Loading patients...</div>
               </div>
@@ -566,7 +566,7 @@ export const InvoiceList = ({ onFileSelect }: InvoiceListProps) => {
   // Show upload list
   return (
     <>
-      <div className="liquid-glass-strong rounded-2xl p-6" style={disableAnimations ? { animation: 'none', transition: 'none' } : {}}>
+      <div className="liquid-glass-strong rounded-2xl p-4 sm:p-5 md:p-6" style={disableAnimations ? { animation: 'none', transition: 'none' } : {}}>
         {message && (
           <MessageAlert message={message} />
         )}
@@ -581,7 +581,7 @@ export const InvoiceList = ({ onFileSelect }: InvoiceListProps) => {
         </div>
 
         {uploads.length === 0 ? (
-          <div className="text-center py-12">
+          <div className="text-center py-8 sm:py-10 md:py-12">
             <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full liquid-glass mb-4">
               <svg className="h-8 w-8 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />

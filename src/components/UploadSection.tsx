@@ -240,9 +240,9 @@ export const UploadSection = ({
   ];
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3 sm:space-y-4 md:space-y-6">
       {/* Combined View Patients Section */}
-      <div className="liquid-glass-table p-4 space-y-4 overflow-visible">
+      <div className="liquid-glass-table p-3 sm:p-4 md:p-6 space-y-3 sm:space-y-4 overflow-visible">
 
         {/* Header Section */}
         <div className="flex items-center justify-between">
@@ -286,7 +286,7 @@ export const UploadSection = ({
 
         {/* Batch Call Progress Bar */}
         {batchCallProgress && batchCallProgress.total > 0 && (
-          <div className="liquid-glass-subtle p-3 rounded-xl">
+          <div className="liquid-glass-subtle p-2 sm:p-3 md:p-4 rounded-xl">
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm font-semibold text-primary">
                 Batch Call Progress

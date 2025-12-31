@@ -612,7 +612,7 @@ export const PatientTable = ({
   // Loading state
   if (loading) {
     return (
-      <div className="liquid-glass-table p-12 flex items-center justify-center">
+      <div className="liquid-glass-table p-8 sm:p-10 md:p-12 flex items-center justify-center">
         <div className="text-center">
           <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
           <p className="text-sm font-medium text-foreground">Loading patients...</p>
@@ -624,7 +624,7 @@ export const PatientTable = ({
   // Empty state
   if (patients.length === 0) {
     return (
-      <div className="liquid-glass-table p-12 text-center">
+      <div className="liquid-glass-table p-8 sm:p-10 md:p-12 text-center">
         <div className="w-16 h-16 rounded-full bg-white/20 flex items-center justify-center mx-auto mb-4 border border-white/30">
           <FiUser className="w-8 h-8 text-foreground" />
         </div>
@@ -635,7 +635,7 @@ export const PatientTable = ({
   }
 
   return (
-    <div className="relative bg-gradient-to-br from-[#9a8ea2]/80 to-[#b0a4b2]/60 backdrop-blur-xl rounded-xl p-4 border-[3px] border-[#e8a855]/70 shadow-[0_0_30px_rgba(232,168,85,0.5),0_0_60px_rgba(232,168,85,0.2),0_8px_32px_rgba(150,130,160,0.25),inset_0_1px_0_rgba(255,255,255,0.4)] flex flex-col overflow-hidden glass-shine">
+    <div className="relative bg-gradient-to-br from-[#9a8ea2]/80 to-[#b0a4b2]/60 backdrop-blur-xl rounded-xl p-2 sm:p-3 md:p-4 border-[3px] border-[#e8a855]/70 shadow-[0_0_30px_rgba(232,168,85,0.5),0_0_60px_rgba(232,168,85,0.2),0_8px_32px_rgba(150,130,160,0.25),inset_0_1px_0_rgba(255,255,255,0.4)] flex flex-col overflow-hidden glass-shine">
       {/* Glossy Top Highlight */}
       <div className="absolute inset-x-0 top-0 h-1/4 bg-gradient-to-b from-white/25 via-white/10 to-transparent rounded-t-xl pointer-events-none" />
 

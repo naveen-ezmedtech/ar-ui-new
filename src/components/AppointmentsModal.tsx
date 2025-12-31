@@ -35,13 +35,13 @@ export const AppointmentsModal = ({
     const totalOutstanding = patient.total_outstanding_amount || patient.outstanding_amount || '0';
 
     return (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center z-50 p-4" onClick={onClose}>
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center z-50 p-3 sm:p-4 md:p-6" onClick={onClose}>
             <div
                 className="liquid-glass-strong rounded-2xl max-w-lg w-full flex flex-col overflow-hidden shadow-2xl max-h-[85vh]"
                 onClick={e => e.stopPropagation()}
             >
                 {/* Header */}
-                <div className="flex items-center justify-between px-6 py-4 border-b border-white/20 flex-shrink-0">
+                <div className="flex items-center justify-between px-4 sm:px-5 md:px-6 py-3 sm:py-4 border-b border-white/20 flex-shrink-0">
                     <div className="flex items-center gap-3">
                         {/* <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
                             <FiCalendar className="text-primary" size={20} />
@@ -60,9 +60,9 @@ export const AppointmentsModal = ({
                 </div>
 
                 {/* Content */}
-                <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                <div className="flex-1 overflow-y-auto p-3 sm:p-4 md:p-5 space-y-2 sm:space-y-3">
                     {appointments.length === 0 ? (
-                        <div className="text-center py-8">
+                        <div className="text-center py-6 sm:py-8 md:py-10">
                             <FiCalendar className="mx-auto text-muted-foreground mb-2" size={32} />
                             <p className="text-muted-foreground">No appointments found</p>
                         </div>
@@ -70,7 +70,7 @@ export const AppointmentsModal = ({
                         appointments.map((appointment: Appointment, index: number) => (
                             <div
                                 key={appointment.id || index}
-                                className="liquid-glass rounded-xl p-4 space-y-3"
+                                className="liquid-glass rounded-xl p-3 sm:p-4 space-y-2 sm:space-y-3"
                             >
                                 {/* Date */}
                                 <div className="flex items-center gap-2">
@@ -106,7 +106,7 @@ export const AppointmentsModal = ({
                 </div>
 
                 {/* Footer */}
-                <div className="px-6 py-4 border-t border-white/20 flex items-center justify-between flex-shrink-0">
+                <div className="px-4 sm:px-5 md:px-6 py-3 sm:py-4 border-t border-white/20 flex items-center justify-between flex-shrink-0">
                     <div className="flex items-center gap-3">
                         <div className="flex flex-col">
                             <span className="text-sm font-semibold text-foreground uppercase tracking-wide">Total Outstanding</span>

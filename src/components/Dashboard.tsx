@@ -3,7 +3,6 @@ import type React from 'react';
 import { getDashboardStats, getCallsByDate } from '../services/api';
 import { formatDateTime, formatDateKey, formatTime, groupCallsByLocalDate } from '../utils/timezone';
 import {
-  FiX,
   FiFileText,
   FiUsers,
   FiDollarSign,
@@ -253,8 +252,8 @@ export const Dashboard = () => {
 
   if (!stats) {
     return (
-      <div className="liquid-glass p-6 rounded-xl border border-white/20 shadow-lg">
-        <div className="text-center py-8">
+      <div className="liquid-glass p-4 sm:p-6 md:p-8 rounded-xl border border-white/20 shadow-lg">
+        <div className="text-center py-6 sm:py-8 md:py-12">
           <FiActivity className="w-12 h-12 mx-auto mb-4 text-foreground" />
           <p className="text-foreground">Unable to load dashboard statistics</p>
         </div>
@@ -266,7 +265,7 @@ export const Dashboard = () => {
 
   if (isEmpty) {
     return (
-      <div className="liquid-glass p-8 rounded-xl border border-white/20 shadow-lg">
+      <div className="liquid-glass p-4 sm:p-6 md:p-8 rounded-xl border border-white/20 shadow-lg">
         <div className="text-center">
           <div className="w-16 h-16 mx-auto mb-4 liquid-glass rounded-full flex items-center justify-center border border-white/30 shadow-md">
             <FiFileText className="w-8 h-8 text-foreground" />
@@ -434,7 +433,7 @@ export const Dashboard = () => {
             {selectedDate ? (
               <div className="flex-1 flex flex-col" key={selectedDate}>
                 {loadingCalls ? (
-                  <div className="flex items-center justify-center py-12">
+                  <div className="flex items-center justify-center py-8 sm:py-10 md:py-12">
                     <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
                   </div>
                 ) : selectedDateCalls.length > 0 ? (
@@ -497,7 +496,7 @@ export const Dashboard = () => {
                     </div>
                   </div>
                 ) : (
-                  <div className="liquid-glass rounded-xl p-8 border-0 flex flex-col items-center justify-center text-center">
+                  <div className="liquid-glass rounded-xl p-4 sm:p-6 md:p-8 border-0 flex flex-col items-center justify-center text-center">
                     <div className="text-foreground">
                       <FiCalendar className="w-12 h-12 mb-4" />
                     </div>
@@ -509,7 +508,7 @@ export const Dashboard = () => {
               </div>
             ) : (
               <div className="flex-1 flex flex-col">
-                <div className="liquid-glass rounded-xl p-8 border-0 flex flex-col items-center justify-center text-center">
+                <div className="liquid-glass rounded-xl p-4 sm:p-6 md:p-8 border-0 flex flex-col items-center justify-center text-center">
                   <div>
                     <FiCalendar className="w-16 h-16 mb-4" />
                   </div>
@@ -714,11 +713,15 @@ export const Dashboard = () => {
       {showPaidPatientsModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center z-50 p-2 sm:p-4 animate-in fade-in duration-200" onClick={() => setShowPaidPatientsModal(false)}>
           <div className="liquid-glass-strong max-w-full sm:max-w-2xl w-full max-h-[90vh] sm:max-h-[80vh] overflow-hidden flex flex-col rounded-lg sm:rounded-2xl border border-white/30 shadow-2xl animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
-            <div className="px-3 sm:px-4 md:px-6 py-3 sm:py-4 border-b border-white/20 flex items-center justify-between">
-              <h2 className="text-base sm:text-lg font-semibold text-foreground">Paid Patients</h2>
-              <button onClick={() => setShowPaidPatientsModal(false)} className="p-1.5 sm:p-2 liquid-glass-btn rounded-lg hover:bg-white/20 transition-colors">
-                <FiX className="w-4 h-4 sm:w-5 sm:h-5 text-foreground" />
-              </button>
+            {/* Header */}
+            <div className="flex items-center justify-between px-4 sm:px-5 md:px-6 py-3 sm:py-4 border-b border-white/20 flex-shrink-0">
+              <h2 className="text-lg font-semibold text-foreground">Paid Patients</h2>
+              <Button
+                onClick={() => setShowPaidPatientsModal(false)}
+                className="liquid-glass-btn-primary"
+              >
+                Close
+              </Button>
             </div>
             <div className="flex-1 overflow-y-auto p-3 sm:p-4">
               {stats.paid_patients && stats.paid_patients.length > 0 ? (

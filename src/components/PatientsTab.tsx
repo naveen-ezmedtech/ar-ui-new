@@ -124,7 +124,7 @@ export const PatientsTab = ({
   return (
     <>
       {/* Header Section */}
-      <div className="mb-4">
+      <div className="mb-3 sm:mb-4 md:mb-6">
         {/* Search and Filter Controls */}
         <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
           {/* Search Input */}

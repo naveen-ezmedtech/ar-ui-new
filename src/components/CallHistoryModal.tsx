@@ -77,13 +77,13 @@ export const CallHistoryModal = ({ isOpen, patient, onClose }: CallHistoryModalP
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center z-50 p-4" onClick={onClose}>
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center z-50 p-3 sm:p-4 md:p-6" onClick={onClose}>
       <div
         className="liquid-glass-strong rounded-2xl max-w-lg w-full flex flex-col overflow-hidden shadow-2xl max-h-[85vh]"
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-white/20 flex-shrink-0">
+        <div className="flex items-center justify-between px-4 sm:px-5 md:px-6 py-3 sm:py-4 border-b border-white/20 flex-shrink-0">
           <div className="flex items-center gap-3">
             <div>
               <h2 className="text-lg font-semibold text-foreground">Call History</h2>
@@ -100,9 +100,9 @@ export const CallHistoryModal = ({ isOpen, patient, onClose }: CallHistoryModalP
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-3">
+        <div className="flex-1 overflow-y-auto p-3 sm:p-4 md:p-5 space-y-2 sm:space-y-3">
           {loading ? (
-            <div className="text-center py-8">
+            <div className="text-center py-6 sm:py-8 md:py-10">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
               <p className="text-muted-foreground mt-2">Loading call history...</p>
             </div>
@@ -111,7 +111,7 @@ export const CallHistoryModal = ({ isOpen, patient, onClose }: CallHistoryModalP
               <p className="text-destructive">{error}</p>
             </div>
           ) : calls.length === 0 ? (
-            <div className="text-center py-8">
+            <div className="text-center py-6 sm:py-8 md:py-10">
               <FiPhone className="mx-auto text-muted-foreground mb-2" size={32} />
               <p className="text-muted-foreground">No call history found</p>
             </div>
@@ -141,7 +141,7 @@ export const CallHistoryModal = ({ isOpen, patient, onClose }: CallHistoryModalP
               return (
                 <div
                   key={call.id}
-                  className="liquid-glass rounded-xl p-4 space-y-3"
+                  className="liquid-glass rounded-xl p-3 sm:p-4 space-y-2 sm:space-y-3"
                 >
                   {/* Attempt and Status */}
                   <div className="flex items-center justify-between">
