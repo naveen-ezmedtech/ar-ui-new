@@ -39,12 +39,16 @@ export const LoginPage = ({ onLogin }: LoginPageProps) => {
 
       const data = await response.json();
 
-      // Store tokens in localStorage
-      localStorage.setItem('access_token', data.access_token);
+      // Store only refresh_token in localStorage (persistent)
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('user');
       localStorage.setItem('refresh_token', data.refresh_token);
-      localStorage.setItem('user', JSON.stringify(data.user));
+      
+      // Store access_token in memory (import from api.ts)
+      const { setAccessToken } = await import('../services/api');
+      setAccessToken(data.access_token);
 
-      // Call parent callback
+      // Call parent callback with access_token and user (for immediate use)
       onLogin(data.access_token, data.user);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Invalid email or password');

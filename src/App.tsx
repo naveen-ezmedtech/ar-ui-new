@@ -11,12 +11,14 @@ import {
   LoginPage,
   SSOLogin,
   Dashboard,
+  SuperAdminDashboard,
   InvoiceList,
   UserManagement,
   PatientsTab,
   ToastContainer,
   useToast,
-  NotFoundPage
+  NotFoundPage,
+  SystemPatients
 } from './components';
 import { SessionExpiredModal } from './components/SessionExpiredModal';
 import { AppSidebar } from './components/app-sidebar';
@@ -29,6 +31,7 @@ import { usePatientData } from './hooks/usePatientData';
 import { useFileUpload } from './hooks/useFileUpload';
 import { useAutoRefresh } from './hooks/useAutoRefresh';
 import { getPatientCallKey, getPatientFullName } from './utils/patientUtils';
+import { decodeRefreshToken } from './lib/jwt';
 import type { Patient, Message, User } from './types';
 
 function App() {
@@ -38,6 +41,7 @@ function App() {
   // Auth state
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState<User | null>(null);
+  const [userRole, setUserRole] = useState<'admin' | 'staff' | 'super_admin' | null>(null);
   const [checkingAuth, setCheckingAuth] = useState(true);
   const [isSSOMode, setIsSSOMode] = useState(false);
   const [sessionExpired, setSessionExpired] = useState(false);
@@ -145,54 +149,92 @@ function App() {
 
   // Check if user is already logged in on mount
   useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const ssoToken = urlParams.get('token');
+    const initializeAuth = async () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const ssoToken = urlParams.get('token');
 
-    if (ssoToken) {
-      // Fresh SSO login: wipe any stale tokens/user data so we don't mix clinics
-      localStorage.removeItem('access_token');
-      localStorage.removeItem('refresh_token');
-      localStorage.removeItem('user');
-      localStorage.removeItem('currentFile');
+      if (ssoToken) {
+        // Fresh SSO login: wipe any stale tokens/user data so we don't mix clinics
+        const { setAccessToken } = await import('./services/api');
+        setAccessToken(null);
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('refresh_token');
+        localStorage.removeItem('user');
+        localStorage.removeItem('currentFile');
+        localStorage.removeItem('callingInProgress');
+        localStorage.removeItem('activeCalls');
+        setIsSSOMode(true);
+        setCheckingAuth(false);
+        return;
+      }
+
+      // Check for refresh_token and decode it to get user data
+      const decodedToken = decodeRefreshToken();
+      if (decodedToken) {
+        setIsAuthenticated(true);
+        setUserRole(decodedToken.role);
+        
+        // Create user object from decoded token
+        const userData: User = {
+          id: decodedToken.user_id,
+          email: decodedToken.sub,
+          full_name: decodedToken.full_name,
+          role: decodedToken.role,
+          clinic: decodedToken.clinic_name || undefined,
+        };
+        setUser(userData);
+        
+        // Get access_token using refresh_token
+        try {
+          const { setAccessToken } = await import('./services/api');
+          const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+          const refreshToken = localStorage.getItem('refresh_token');
+          if (refreshToken) {
+            const response = await fetch(`${API_URL}/refresh`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ refresh_token: refreshToken }),
+            });
+            if (response.ok) {
+              const data = await response.json();
+              setAccessToken(data.access_token);
+            }
+          }
+        } catch (error) {
+          console.error('Failed to get access token on app load:', error);
+        }
+      }
+
+      const storedCurrentFile = localStorage.getItem('currentFile');
+      if (storedCurrentFile) {
+        setCurrentFile(storedCurrentFile);
+      }
+
+      selectedUploadIdRef.current = null;
       localStorage.removeItem('callingInProgress');
       localStorage.removeItem('activeCalls');
-      setIsSSOMode(true);
+
       setCheckingAuth(false);
-      return;
-    }
+    };
 
-    const token = localStorage.getItem('access_token');
-    const storedUser = localStorage.getItem('user');
-
-    if (token && storedUser) {
-      setIsAuthenticated(true);
-      setUser(JSON.parse(storedUser));
-    }
-
-    const storedCurrentFile = localStorage.getItem('currentFile');
-    if (storedCurrentFile) {
-      setCurrentFile(storedCurrentFile);
-    }
-
-    selectedUploadIdRef.current = null;
-    localStorage.removeItem('callingInProgress');
-    localStorage.removeItem('activeCalls');
-
-    setCheckingAuth(false);
+    initializeAuth();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Load patient data and available files when app loads
   useEffect(() => {
     if (!checkingAuth && isAuthenticated) {
-      loadAvailableFiles();
-      if (activeSection === 'ar-operations') {
-        const currentUploadId = getSelectedUploadId();
-        loadPatientData(currentUploadId, false);
+      // Only load files for admin/staff, not super_admin
+      if (userRole !== 'super_admin') {
+        loadAvailableFiles();
+        if (activeSection === 'ar-operations') {
+          const currentUploadId = getSelectedUploadId();
+          loadPatientData(currentUploadId, false);
+        }
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [checkingAuth, isAuthenticated, location.pathname]);
+  }, [checkingAuth, isAuthenticated, location.pathname, userRole]);
 
   // Clean up activeCalls when patient data changes - remove entries for completed/failed calls
   // ONLY after post-call notes are updated
@@ -234,21 +276,37 @@ function App() {
   }, [patients]);
 
   // Handle login
-  const handleLogin = (_token: string, userData: User) => {
+  const handleLogin = (_token: string, _userData: User) => {
     setIsSSOMode(false);
     if (window.location.search) {
       window.history.replaceState({}, document.title, window.location.pathname);
     }
-    // Persist latest user for downstream clinic scoping
-    localStorage.setItem('user', JSON.stringify(userData));
-    setIsAuthenticated(true);
-    setUser(userData);
+    
+    // Decode refresh token to get user data
+    const decodedToken = decodeRefreshToken();
+    if (decodedToken) {
+      setIsAuthenticated(true);
+      setUserRole(decodedToken.role);
+      
+      // Create user object from decoded token
+      const userData: User = {
+        id: decodedToken.user_id,
+        email: decodedToken.sub,
+        full_name: decodedToken.full_name,
+        role: decodedToken.role,
+        clinic: decodedToken.clinic_name || undefined,
+      };
+      setUser(userData);
+    }
+    
     navigate('/dashboard');
   };
 
   // Handle logout
-  const handleLogout = () => {
+  const handleLogout = async () => {
     stopAutoRefresh();
+    const { setAccessToken } = await import('./services/api');
+    setAccessToken(null);
     localStorage.removeItem('access_token');
     localStorage.removeItem('refresh_token');
     localStorage.removeItem('user');
@@ -257,6 +315,7 @@ function App() {
     localStorage.removeItem('activeCalls');
     setIsAuthenticated(false);
     setUser(null);
+    setUserRole(null);
     setCurrentFile('');
     setSessionExpired(false);
     navigate('/');
@@ -864,6 +923,12 @@ function App() {
   };
 
   const handleSectionChange = (section: 'dashboard' | 'ar-operations' | 'invoice-list' | 'patients' | 'users') => {
+    // For super_admin, only allow dashboard and patients
+    if (userRole === 'super_admin' && section !== 'dashboard' && section !== 'patients') {
+      navigate('/dashboard');
+      return;
+    }
+
     const routeMap: Record<string, string> = {
       'dashboard': '/dashboard',
       'ar-operations': '/ar-operations',
@@ -948,6 +1013,7 @@ function App() {
                 currentPage={activeSection}
                 onLogout={handleLogout}
                 userData={user}
+                userRole={userRole}
               />
               <main className="main-content-wrapper">
                 <AppHeader currentPage={activeSection} />
@@ -962,60 +1028,78 @@ function App() {
                           path="/dashboard" 
                           element={
                             <div className="space-y-3 sm:space-y-4 md:space-y-6 px-3 sm:px-4 md:px-5 lg:px-6 py-1 sm:py-2">
-                              <Dashboard />
+                              {userRole === 'super_admin' ? <SuperAdminDashboard /> : <Dashboard />}
                             </div>
                           } 
                         />
-                        <Route 
-                          path="/invoice-list" 
-                          element={
-                            <div className="px-3 sm:px-4 md:px-5 lg:px-6 py-1 sm:py-2">
-                              <InvoiceList onFileSelect={() => { }} />
-                            </div>
-                          } 
-                        />
-                        <Route 
-                          path="/patients" 
-                          element={
-                            <div className="px-3 sm:px-4 md:px-5 lg:px-6 py-1 sm:py-2">
-                              <PatientsTab
-                                onViewNotes={handleViewNotes}
-                                onViewCallHistory={handleViewCallHistory}
-                                onViewDetails={handleViewDetails}
-                                showMessage={showMessage}
-                              />
-                            </div>
-                          } 
-                        />
-                        <Route 
-                          path="/ar-operations" 
-                          element={
-                            <div className="px-3 sm:px-4 md:px-5 lg:px-6 py-1 sm:py-2">
-                              <UploadSection
-                                availableFiles={availableFiles}
-                                selectedUploadId={selectedUploadId}
-                                patients={patients}
-                                loading={loading}
-                                uploadLoading={uploadLoading}
-                                callingInProgress={callingInProgress}
-                                activeCalls={activeCalls}
-                                batchCallProgress={batchCallProgress}
-                                currentFile={currentFile}
-                                onFileUpload={handleFileUpload}
-                                onFileSelect={handleFileSelect}
-                                onBatchCall={handleBatchCall}
-                                onViewNotes={handleViewNotes}
-                                onCallPatient={handleCallPatient}
-                                onEndCall={handleEndCall}
-                                onViewCallHistory={handleViewCallHistory}
-                                onRefreshPatients={async () => {
-                                  await loadPatientData(selectedUploadId, true); // silent=true to avoid showing loading message
-                                }}
-                                onViewDetails={handleViewDetails}
-                              />
-                            </div>
-                          } 
-                        />
+                        {/* For super_admin: show System Patients, redirect others to dashboard */}
+                        {userRole === 'super_admin' ? (
+                          <>
+                            <Route 
+                              path="/patients" 
+                              element={
+                                <div className="px-3 sm:px-4 md:px-5 lg:px-6 py-1 sm:py-2">
+                                  <SystemPatients />
+                                </div>
+                              } 
+                            />
+                            <Route path="/invoice-list" element={<Navigate to="/dashboard" replace />} />
+                            <Route path="/ar-operations" element={<Navigate to="/dashboard" replace />} />
+                          </>
+                        ) : (
+                          <>
+                            <Route 
+                              path="/invoice-list" 
+                              element={
+                                <div className="px-3 sm:px-4 md:px-5 lg:px-6 py-1 sm:py-2">
+                                  <InvoiceList onFileSelect={() => { }} />
+                                </div>
+                              } 
+                            />
+                            <Route 
+                              path="/patients" 
+                              element={
+                                <div className="px-3 sm:px-4 md:px-5 lg:px-6 py-1 sm:py-2">
+                                  <PatientsTab
+                                    onViewNotes={handleViewNotes}
+                                    onViewCallHistory={handleViewCallHistory}
+                                    onViewDetails={handleViewDetails}
+                                    showMessage={showMessage}
+                                  />
+                                </div>
+                              } 
+                            />
+                            <Route 
+                              path="/ar-operations" 
+                              element={
+                                <div className="px-3 sm:px-4 md:px-5 lg:px-6 py-1 sm:py-2">
+                                  <UploadSection
+                                    availableFiles={availableFiles}
+                                    selectedUploadId={selectedUploadId}
+                                    patients={patients}
+                                    loading={loading}
+                                    uploadLoading={uploadLoading}
+                                    callingInProgress={callingInProgress}
+                                    activeCalls={activeCalls}
+                                    batchCallProgress={batchCallProgress}
+                                    currentFile={currentFile}
+                                    onFileUpload={handleFileUpload}
+                                    onFileSelect={handleFileSelect}
+                                    onBatchCall={handleBatchCall}
+                                    onViewNotes={handleViewNotes}
+                                    onCallPatient={handleCallPatient}
+                                    onEndCall={handleEndCall}
+                                    onViewCallHistory={handleViewCallHistory}
+                                    onRefreshPatients={async () => {
+                                      await loadPatientData(selectedUploadId, true); // silent=true to avoid showing loading message
+                                    }}
+                                    onViewDetails={handleViewDetails}
+                                  />
+                                </div>
+                              } 
+                            />
+                          </>
+                        )}
                         <Route path="/login" element={<Navigate to="/dashboard" replace />} />
                         <Route path="/" element={<Navigate to="/dashboard" replace />} />
                         <Route path="*" element={<Navigate to="/not-found" replace />} />

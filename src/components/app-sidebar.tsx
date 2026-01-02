@@ -17,8 +17,10 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "./ui/sidebar"
+import { decodeRefreshToken } from "../lib/jwt"
 
-const navItems = [
+// Navigation items for admin and staff (full UI)
+const adminNavItems = [
   {
     title: "Dashboard",
     url: "/dashboard",
@@ -45,6 +47,22 @@ const navItems = [
   },
 ]
 
+// Navigation items for super_admin (simplified UI)
+const superAdminNavItems = [
+  {
+    title: "Dashboard",
+    url: "/dashboard",
+    icon: "IconDashboard",
+    page: "dashboard"
+  },
+  {
+    title: "Patients",
+    url: "/patients",
+    icon: "IconUsers",
+    page: "patients"
+  },
+]
+
 const iconMap = {
   IconDashboard,
   IconFileUpload,
@@ -57,21 +75,46 @@ export function AppSidebar({
   currentPage,
   onLogout,
   userData,
+  userRole,
   ...props
 }: React.ComponentProps<typeof Sidebar> & {
   onPageChange?: (page: string) => void
   currentPage?: string
   onLogout?: () => void
   userData?: any
+  userRole?: 'admin' | 'staff' | 'super_admin' | null
 }) {
+  // Select navigation items based on user role
+  const navItems = React.useMemo(() => {
+    if (userRole === 'super_admin') {
+      return superAdminNavItems;
+    }
+    // For admin and staff, show full navigation
+    return adminNavItems;
+  }, [userRole]);
+
   const resolvedNavItems = React.useMemo(() => {
     return navItems.map(item => ({
       ...item,
       icon: iconMap[item.icon as keyof typeof iconMap]
     }))
-  }, [])
+  }, [navItems])
 
   const resolvedUser = React.useMemo(() => {
+    // Decode refresh token to get user data
+    const decodedToken = decodeRefreshToken();
+    
+    if (decodedToken) {
+      return {
+        name: decodedToken.full_name || 'User',
+        email: decodedToken.sub || '',
+        avatar: userData?.avatar || '',
+        role: decodedToken.role || '',
+        phone: userData?.phone_number || userData?.mobile_phone || userData?.phone || userData?.contact_number || ''
+      }
+    }
+    
+    // Fallback to userData if token decode fails
     const fallbackName = 'User'
     const fullName = `${userData?.first_name || ''} ${userData?.last_name || ''}`.trim()
 

@@ -4,12 +4,25 @@ import type { Patient, BatchCallResult } from '../types';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
+// In-memory storage for access_token (not persisted)
+let accessToken: string | null = null;
+
 // Queue pattern for handling concurrent requests during token refresh
 let isRefreshing = false;
 let failedQueue: Array<{
   resolve: (value?: unknown) => void;
   reject: (reason?: unknown) => void;
 }> = [];
+
+// Function to set access token in memory
+export const setAccessToken = (token: string | null) => {
+  accessToken = token;
+};
+
+// Function to get access token from memory
+export const getAccessToken = (): string | null => {
+  return accessToken;
+};
 
 const processQueue = (error: unknown = null, token: string | null = null) => {
   failedQueue.forEach((promise) => {
@@ -33,7 +46,8 @@ const api = axios.create({
 // Request interceptor to add authentication token
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('access_token');
+    // Get access_token from memory
+    const token = getAccessToken();
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -59,7 +73,7 @@ api.interceptors.response.use(
       const refreshToken = localStorage.getItem('refresh_token');
       if (!refreshToken) {
         // No refresh token available - dispatch session expired event
-        localStorage.removeItem('access_token');
+        setAccessToken(null);
         localStorage.removeItem('user');
         window.dispatchEvent(new CustomEvent('session-expired'));
         return Promise.reject(error);
@@ -98,8 +112,8 @@ api.interceptors.response.use(
 
         const newAccessToken = response.data.access_token;
         
-        // Update localStorage with new access token
-        localStorage.setItem('access_token', newAccessToken);
+        // Store access_token in memory (not persisted)
+        setAccessToken(newAccessToken);
         
         // Update the failed request's Authorization header
         originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
@@ -118,7 +132,7 @@ api.interceptors.response.use(
         processQueue(refreshError, null);
         isRefreshing = false;
         
-        localStorage.removeItem('access_token');
+        setAccessToken(null);
         localStorage.removeItem('refresh_token');
         localStorage.removeItem('user');
         
@@ -495,6 +509,85 @@ export const getDashboardStats = async (): Promise<{
   }>;
 }> => {
   const response = await api.get('/dashboard/stats');
+  return response.data;
+};
+
+// Get super admin dashboard statistics
+export const getSuperAdminDashboardStats = async (): Promise<{
+  total_clinics: number;
+  total_staff: number;
+  clinics: Array<{
+    id: number;
+    name: string;
+    patient_count: number;
+    call_count: number;
+    staff: Array<{
+      id: number;
+      email: string;
+      full_name: string;
+      role: string;
+      is_active: boolean;
+    }>;
+    created_at: string;
+  }>;
+  global_stats: {
+    total_invoices: number;
+    total_patients: number;
+    total_appointments: number;
+    total_outstanding: number;
+    total_amount_paid: number;
+    calls_made: number;
+    calls_completed: number;
+    calls_pending: number;
+    calls_failed: number;
+    recent_calls: number;
+    recent_uploads: number;
+    total_files: number;
+    status_distribution: Array<{ status: string; count: number }>;
+    recent_calls_list: Array<{
+      patient_first_name: string;
+      patient_last_name: string;
+      phone_number: string;
+      patient_account_number: string;
+      called_at: string;
+      call_status: string;
+      notes: string;
+    }>;
+    paid_patients: Array<{
+      patient_first_name: string;
+      patient_last_name: string;
+      phone_number: string;
+      invoice_number: string;
+      amount_paid: number;
+      payment_completed_at: string | null;
+    }>;
+  };
+}> => {
+  const response = await api.get('/dashboard/super-admin');
+  return response.data;
+};
+
+// SystemPatient interface for super admin patients
+export interface SystemPatient {
+  id: number;
+  phone_number: string;
+  patient_account_number: string;
+  patient_first_name: string;
+  patient_last_name: string;
+  estimated_date: string;
+  amount_paid: string;
+  current_outstanding_balance: string;
+}
+
+// Get patients by clinic_id for super admin
+export const getPatientsByClinic = async (clinicId: number): Promise<{
+  success: boolean;
+  count: number;
+  patients: SystemPatient[];
+}> => {
+  const response = await api.get('/patients', {
+    params: { clinic_id: clinicId }
+  });
   return response.data;
 };
 

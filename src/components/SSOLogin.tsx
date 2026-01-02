@@ -41,16 +41,17 @@ export const SSOLogin = ({ onLogin }: SSOLoginProps) => {
 
         const data = await response.json();
 
-        // Store tokens and user in localStorage
+        // Store only refresh_token in localStorage (persistent)
         // Clear any stale session data to avoid cross-clinic leakage
         localStorage.removeItem('access_token');
-        localStorage.removeItem('refresh_token');
         localStorage.removeItem('user');
-        localStorage.setItem('access_token', data.access_token);
         localStorage.setItem('refresh_token', data.refresh_token);
-        localStorage.setItem('user', JSON.stringify(data.user));
+        
+        // Store access_token in memory (import from api.ts)
+        const { setAccessToken } = await import('../services/api');
+        setAccessToken(data.access_token);
 
-        // Call parent callback
+        // Call parent callback with access_token and user (for immediate use)
         onLogin(data.access_token, data.user);
       } catch (err: unknown) {
         setError(err instanceof Error ? err.message : 'SSO authentication failed');

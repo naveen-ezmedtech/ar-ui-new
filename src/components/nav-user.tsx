@@ -57,8 +57,8 @@ export function NavUser({
               </Avatar>
               <div className="grid flex-1 text-left text-sm leading-tight">
                 <span className="truncate font-medium">{user.name}</span>
-                {/* <span className="truncate text-xs">
-                  {user.role || user.email || "null"}
+                {/* <span className="truncate text-xs text-foreground/70" style={{ textTransform: 'none' }}>
+                  {user.email || "null"}
                 </span> */}
               </div>
               <IconDotsVertical className="ml-auto size-4" />
